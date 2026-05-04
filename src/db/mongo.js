@@ -4,7 +4,13 @@ let client;
 let db;
 
 const connect = async () => {
-  client = new MongoClient(process.env.MONGODB_URI);
+  client = new MongoClient(process.env.MONGODB_URI, {
+    tls: true,
+    tlsAllowInvalidCertificates: false,
+    tlsAllowInvalidHostnames: false,
+    serverSelectionTimeoutMS: 30000,
+    connectTimeoutMS: 30000,
+  });
   await client.connect();
   db = client.db('couplecanvas');
   console.log('MongoDB connected successfully');
@@ -12,7 +18,7 @@ const connect = async () => {
 };
 
 const getDb = () => {
-  if (!db) throw new Error('Database not connected. Call connect() first.');
+  if (!db) throw new Error('Database not connected');
   return db;
 };
 
