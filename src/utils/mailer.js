@@ -11,26 +11,35 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendPhotographerWelcomeEmail = async ({ toEmail, name, password }) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
   await transporter.sendMail({
     from: `"CoupleCanvas Admin" <${process.env.EMAIL_USER}>`,
     to: toEmail,
-    subject: 'Your CoupleCanvas photographer account is ready',
+    subject: 'Your CoupleCanvas Photographer Account is Ready',
     html: `
-      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#333">
+      <div style="font-family:sans-serif; max-width:560px; margin:0 auto; padding:32px 24px; color:#333;">
         <h2>Welcome to CoupleCanvas, ${name}!</h2>
-        <p>Your photographer account has been created by the admin.</p>
-        <div style="background:#f5f5f5;padding:16px;border-radius:8px;margin:16px 0">
-          <p style="margin:4px 0"><strong>Email:</strong> ${toEmail}</p>
-          <p style="margin:4px 0"><strong>Password:</strong> ${password}</p>
+        <p>Your photographer account has been created successfully.</p>
+        
+        <div style="background:#f5f5f5; padding:20px; border-radius:8px; margin:20px 0;">
+          <p style="margin:8px 0;"><strong>Email:</strong> ${toEmail}</p>
+          <p style="margin:8px 0;"><strong>Password:</strong> ${password}</p>
         </div>
-        <a href="${process.env.FRONTEND_URL}/photographer/login"
-           style="display:inline-block;margin:16px 0;padding:12px 28px;background:#534AB7;color:#fff;border-radius:8px;text-decoration:none;font-weight:500">
+
+        <a href="${frontendUrl}/login" 
+           style="display:inline-block; margin:20px 0; padding:14px 32px; background:#534AB7; color:#fff; border-radius:8px; text-decoration:none; font-weight:600;">
           Log in to your account
         </a>
-        <p style="color:#888;font-size:13px">Please change your password after first login.</p>
+
+        <p style="color:#666; font-size:14px; margin-top:20px;">
+          Please change your password after your first login for security.
+        </p>
       </div>
     `,
   });
+
+  console.log(`✅ Welcome email sent to ${toEmail}`);
 };
 
 const sendAlbumInviteEmail = async ({ toEmail, customerName, albumTitle, photographerName, registerUrl }) => {
