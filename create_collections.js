@@ -1,6 +1,6 @@
-require('dotenv').config();
-const { MongoClient } = require('mongodb');
-const bcrypt = require('bcrypt');
+import 'dotenv/config.js';
+import { MongoClient } from 'mongodb';
+import bcrypt from 'bcrypt';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB = process.env.MONGODB_DB || 'memoalbum';

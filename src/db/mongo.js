@@ -1,9 +1,9 @@
-const { MongoClient } = require('mongodb');
+import { MongoClient } from 'mongodb';
 
 let client;
 let db;
 
-const connect = async () => {
+export const connect = async () => {
   client = new MongoClient(process.env.MONGODB_URI, {
     tls: true,
     tlsAllowInvalidCertificates: false,
@@ -17,14 +17,12 @@ const connect = async () => {
   return db;
 };
 
-const getDb = () => {
+export const getDb = () => {
   if (!db) throw new Error('Database not connected');
   return db;
 };
 
-const close = async () => {
+export const close = async () => {
   if (client) await client.close();
   console.log('MongoDB connection closed');
 };
-
-module.exports = { connect, getDb, close };

@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendPhotographerWelcomeEmail = async ({ toEmail, name, password }) => {
+export const sendPhotographerWelcomeEmail = async ({ toEmail, name, password }) => {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
   await transporter.sendMail({
@@ -42,7 +42,7 @@ const sendPhotographerWelcomeEmail = async ({ toEmail, name, password }) => {
   console.log(`✅ Welcome email sent to ${toEmail}`);
 };
 
-const sendAlbumInviteEmail = async ({ toEmail, customerName, albumTitle, photographerName, registerUrl }) => {
+export const sendAlbumInviteEmail = async ({ toEmail, customerName, albumTitle, photographerName, registerUrl }) => {
   await transporter.sendMail({
     from: `"CoupleCanvas" <${process.env.EMAIL_USER}>`,
     to: toEmail,
@@ -62,7 +62,7 @@ const sendAlbumInviteEmail = async ({ toEmail, customerName, albumTitle, photogr
   });
 };
 
-const sendPaymentConfirmationEmail = async ({ toEmail, customerName, albumTitle, viewUrl }) => {
+export const sendPaymentConfirmationEmail = async ({ toEmail, customerName, albumTitle, viewUrl }) => {
   await transporter.sendMail({
     from: `"CoupleCanvas" <${process.env.EMAIL_USER}>`,
     to: toEmail,
