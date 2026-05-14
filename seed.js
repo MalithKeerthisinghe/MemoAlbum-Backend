@@ -5,15 +5,37 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import User from "./src/models/User.js";
 
-await mongoose.connect(process.env.MONGODB_URI);const hashed = await bcrypt.hash("password123", 10);await User.create({
-  name: "NETHMI TK",
-  email: "nethmitk33@gmail.com",
-  phone: "0777858521",
-  address: "Walapala Road, Imaduwa",
-  password: hashed,
-  roleId: "6a01ee94eeadb31b01cee41a",
-  status: "active"
-});
+const seedAdmin = async () => {
+  try {
+ 
+    await mongoose.connect(process.env.MONGODB_URI);
+    const existingAdmin = await User.findOne({
+      email: "admin@gmail.com",
+    });
 
-console.log("DONE");
-process.exit();
+    if (existingAdmin) {
+      console.log("⚠️ Admin already exists");
+      process.exit(0);
+    }
+    const hashedPassword = await bcrypt.hash("password123", 10);
+    const admin = await User.create({
+      name: "Super Admin",
+      email: "admin@gmail.com",
+      phone: "0000000000",
+      address: "System",
+      password: hashedPassword,
+      roleId: "6a01ee94eeadb31b01cee41a",
+      status: "active",
+    });
+
+    console.log("✅ Admin created successfully:");
+    console.log(admin);
+
+    process.exit(0);
+  } catch (error) {
+    console.error("❌ Seed error:", error);
+    process.exit(1);
+  }
+};
+
+seedAdmin();
