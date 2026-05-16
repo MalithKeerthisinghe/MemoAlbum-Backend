@@ -2,21 +2,31 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 
 import app from "./src/app.js";
+import { connect as connectMongoClient } from "./src/db/mongo.js";
 
 dotenv.config();
 
 console.log("DB URL:", process.env.MONGODB_URI);
 
-mongoose.connect(process.env.MONGODB_URI)
-.then(() => {
-  console.log("MongoDB Connected");
-})
-.catch((err) => {
-  console.log("DB Error:", err);
-});
-
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on ${PORT}`);
-});
+async function startServer() {
+  try {
+    // connect the MongoClient used by routes
+    await connectMongoClient();
+    console.log('MongoClient connected');
+
+    // also connect mongoose for Mongoose models
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('Mongoose connected');
+
+    app.listen(PORT, () => {
+      console.log(`Server running on ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  }
+}
+
+startServer();

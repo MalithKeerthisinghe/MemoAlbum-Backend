@@ -9,6 +9,23 @@ const userSchema = new mongoose.Schema({
   phone: String,
   address: String,
   password: String,
+  bio: String,
+  profilePic: String,
+  subscriptionPlan: String,
+  socials: {
+    instagram: String,
+    facebook: String,
+    tiktok: String,
+    x: String,
+    youtube: String,
+    linkedin: String,
+    website: String,
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  createdByEmail: String,
   roleId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Role"
