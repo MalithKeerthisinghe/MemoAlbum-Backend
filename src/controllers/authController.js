@@ -1,6 +1,30 @@
 import User from "../models/User.js";
+import Role from "../models/Role.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+
+const LEGACY_ADMIN_ROLE_ID = "6a01ee94eeadb31b01cee41a";
+const DEFAULT_ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "admin@gmail.com").toLowerCase();
+
+const resolveUserRoleName = async (user) => {
+  if (!user?.roleId) return null;
+
+  const roleIdValue = user.roleId.toString();
+
+  const roleDoc =
+    (await Role.findById(user.roleId).select('roleName roleId').catch(() => null)) ||
+    (await Role.findOne({ roleId: roleIdValue }).select('roleName roleId').catch(() => null));
+
+  if (roleDoc?.roleName) {
+    return roleDoc.roleName.toLowerCase();
+  }
+
+  if (roleIdValue === LEGACY_ADMIN_ROLE_ID) {
+    return 'admin';
+  }
+
+  return null;
+};
 
 export const adminLogin = async (req, res) => {
   try {
@@ -34,11 +58,15 @@ export const adminLogin = async (req, res) => {
       });
     }
 
-    // 4. role check (super admin only)
-    if (user.roleId.toString() !== "6a01ee94eeadb31b01cee41a") {
+    const roleName = await resolveUserRoleName(user);
+    const isLegacyAdmin = user.roleId?.toString?.() === LEGACY_ADMIN_ROLE_ID;
+    const isDefaultAdminEmail = user.email?.toLowerCase?.() === DEFAULT_ADMIN_EMAIL;
+
+    // 4. role check (admin only)
+    if (roleName !== "admin" && !isLegacyAdmin && !isDefaultAdminEmail) {
       return res.status(403).json({
         success: false,
-        message: "Access denied. Super admin only",
+        message: "Access denied. Admin only",
       });
     }
 
@@ -47,6 +75,7 @@ export const adminLogin = async (req, res) => {
       {
         id: user._id,
         email: user.email,
+        role: roleName ?? (isLegacyAdmin || isDefaultAdminEmail ? "admin" : null),
         roleId: user.roleId,
       },
       process.env.JWT_SECRET,
@@ -62,6 +91,7 @@ export const adminLogin = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: roleName ?? (isLegacyAdmin || isDefaultAdminEmail ? "admin" : null),
         roleId: user.roleId,
       },
     });
