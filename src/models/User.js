@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true
   },
+  partnerEmail: String,
   phone: String,
   address: String,
   password: String,
@@ -29,6 +30,11 @@ const userSchema = new mongoose.Schema({
   roleId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Role"
+  },
+  invitationStatus: {
+    type: String,
+    enum: ['sent', 'accepted', 'active'],
+    default: 'sent'
   },
   status: {
     type: String,

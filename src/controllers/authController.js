@@ -58,6 +58,11 @@ export const adminLogin = async (req, res) => {
       });
     }
 
+    if (user.invitationStatus === 'sent') {
+      user.invitationStatus = 'accepted';
+      await user.save();
+    }
+
     const roleName = await resolveUserRoleName(user);
     const isLegacyAdmin = user.roleId?.toString?.() === LEGACY_ADMIN_ROLE_ID;
     const isDefaultAdminEmail = user.email?.toLowerCase?.() === DEFAULT_ADMIN_EMAIL;

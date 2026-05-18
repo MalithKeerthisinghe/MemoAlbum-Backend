@@ -1,10 +1,11 @@
-import mongoose from "mongoose";
 import dotenv from "dotenv";
 
+// Load env variables FIRST, before any other imports
+dotenv.config();
+
+import mongoose from "mongoose";
 import app from "./src/app.js";
 import { connect as connectMongoClient } from "./src/db/mongo.js";
-
-dotenv.config();
 
 console.log("DB URL:", process.env.MONGODB_URI);
 
