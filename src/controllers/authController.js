@@ -110,3 +110,101 @@ export const adminLogin = async (req, res) => {
     });
   }
 };
+
+// General login for all users (photographer, couple, client, admin)
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // 1. check empty fields
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    // 2. find user
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // 3. check if user is active
+    if (user.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        message: "Your account is inactive. Please contact support.",
+      });
+    }
+
+    // 4. check password
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // 5. get user role
+    const roleName = await resolveUserRoleName(user);
+
+    // 6. generate JWT token
+    const token = jwt.sign(
+      {
+        id: user._id,
+        email: user.email,
+        role: roleName || 'client',
+        roleId: user.roleId,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // 7. success response
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: roleName || 'client',
+        roleId: user.roleId,
+        status: user.status,
+      },
+    });
+
+  } catch (err) {
+    console.error("Login Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// Logout endpoint
+export const logout = async (req, res) => {
+  try {
+    // Logout is handled on the client side by removing tokens
+    // This endpoint just validates the token and returns success
+    return res.status(200).json({
+      success: true,
+      message: "Logout successful",
+    });
+  } catch (err) {
+    console.error("Logout Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};

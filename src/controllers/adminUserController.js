@@ -339,6 +339,81 @@ class AdminUserController {
       return res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
   }
+
+  static async getUserProfile(req, res) {
+    try {
+      const userId = req.params.id || req.user?.id;
+
+      if (!userId) {
+        return res.status(400).json({ success: false, message: 'User ID is required' });
+      }
+
+      const user = await User.findById(userId).populate('roleId', 'roleName name');
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      return res.json({
+        success: true,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          bio: user.bio,
+          profilePic: user.profilePic,
+          role: user.roleId?.roleName || 'client',
+          status: user.status,
+          socials: user.socials || {},
+        },
+      });
+    } catch (error) {
+      console.error('Get Profile Error:', error);
+      return res.status(500).json({ success: false, message: 'Error fetching profile', error: error.message });
+    }
+  }
+
+  static async updateUserProfile(req, res) {
+    try {
+      const userId = req.params.id || req.user?.id;
+      const { name, phone, bio, profilePic } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ success: false, message: 'User ID is required' });
+      }
+
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      // Update allowed fields
+      if (name) user.name = name;
+      if (phone) user.phone = phone;
+      if (bio) user.bio = bio;
+      if (profilePic) user.profilePic = profilePic;
+
+      await user.save();
+
+      return res.json({
+        success: true,
+        message: 'Profile updated successfully',
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          bio: user.bio,
+          profilePic: user.profilePic,
+        },
+      });
+    } catch (error) {
+      console.error('Update Profile Error:', error);
+      return res.status(500).json({ success: false, message: 'Error updating profile', error: error.message });
+    }
+  }
 }
 
 export default AdminUserController;

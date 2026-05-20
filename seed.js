@@ -10,26 +10,25 @@ const seedAdmin = async () => {
  
     await mongoose.connect(process.env.MONGODB_URI);
     const existingAdmin = await User.findOne({
-      email: "admin@gmail.com",
+      email: "nethmi@gmail.com",
     });
 
     if (existingAdmin) {
       console.log("⚠️ Admin already exists");
       process.exit(0);
     }
-    const hashedPassword = await bcrypt.hash("password123", 10);
+    const hashedPassword = await bcrypt.hash("nethmi123", 10);
     const admin = await User.create({
       name: "Super Admin",
-      email: "admin@gmail.com",
-      phone: "0000000000",
+      email: "nethmi@gmail.com",
+      phone: "0777858521",
       address: "System",
       password: hashedPassword,
-      roleId: "6a01ee94eeadb31b01cee41a",
+      roleId: "6a0473dd612d82d9fe664511",
       status: "active",
     });
 
-    console.log("✅ Admin created successfully:");
-    console.log(admin);
+     console.log(admin);
 
     process.exit(0);
   } catch (error) {
