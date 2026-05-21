@@ -5,6 +5,8 @@ import authRoutes from "./routes/authRoutes.js";
 import adminApiRoutes from './routes/adminApi.js';
 import albumRoutes from './routes/albumRoutes.js';
 import curateRoutes from './routes/curateRoutes.js';
+import archiveRoutes from './routes/archiveRoutes.js';
+import clientInviteRoutes from './routes/clientInviteRoutes.js';
 import photographerRoutes from './routes/photographerRoutes.js';
 
 const app = express();
@@ -21,6 +23,8 @@ app.get("/", (req, res) => {
 app.use('/api/admin', adminApiRoutes);
 app.use('/api/albums', albumRoutes);
 app.use('/api/curate', curateRoutes);
+app.use('/api/archive', archiveRoutes);
+app.use('/api/client-invites', clientInviteRoutes);
 app.use('/api/photographer', photographerRoutes);
 
 export default app;

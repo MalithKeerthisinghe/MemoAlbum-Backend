@@ -56,7 +56,7 @@ const curateSchema = new mongoose.Schema(
     },
     weddingDate: {
       type: Date,
-      required: true,
+      default: null,
     },
     accessControl: {
       type: String,
@@ -75,10 +75,14 @@ const curateSchema = new mongoose.Schema(
       type: [curateMediaSchema],
       default: [],
     },
+    selectedTemplate: {
+      type: String,
+      default: 'template-1',
+    },
     status: {
       type: String,
-      enum: ['draft', 'published'],
-      default: 'draft',
+      enum: ['save_draft', 'saved', 'draft', 'published'],
+      default: 'save_draft',
     },
     progress: {
       type: Number,
