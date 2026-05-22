@@ -8,6 +8,19 @@ const archiveSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    albumTitle: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    albumCoverPhoto: {
+      type: String,
+      default: '',
+    },
+    albumStatus: {
+      type: String,
+      default: 'archived',
+    },
     photographerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

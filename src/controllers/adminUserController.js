@@ -190,10 +190,12 @@ class AdminUserController {
           })));
         }
 
+        const userResponse = updatedUser.toObject();
+        delete userResponse.password;
         return res.json({
           success: true,
           message: "User updated successfully",
-          user: updatedUser
+          user: userResponse
         });
       } else {
          if (!password) {
@@ -237,10 +239,12 @@ class AdminUserController {
           console.error('Invitation email failed:', emailError);
         })));
 
+        const userResponse = savedUser.toObject();
+        delete userResponse.password;
         return res.status(201).json({
           success: true,
           message: "User created successfully",
-          user: savedUser
+          user: userResponse
         });
       }
     } catch (error) {
