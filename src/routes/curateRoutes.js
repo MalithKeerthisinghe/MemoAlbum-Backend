@@ -5,6 +5,7 @@ import {
   getCurateDraft,
   getCurateTemplatePreview,
   listCurateDrafts,
+  listCurateTemplates,
   saveCurateDraft,
 } from '../controllers/curateController.js';
 
@@ -14,6 +15,7 @@ router.use(protect);
 
 router.post('/', saveCurateDraft);
 router.get('/', listCurateDrafts);
+router.get('/templates', listCurateTemplates);
 router.get('/current', getCurateDraft);
 router.get('/current/template-preview', getCurateTemplatePreview);
 router.delete('/current', deleteCurateDraft);

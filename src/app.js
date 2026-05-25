@@ -8,6 +8,7 @@ import curateRoutes from './routes/curateRoutes.js';
 import archiveRoutes from './routes/archiveRoutes.js';
 import clientInviteRoutes from './routes/clientInviteRoutes.js';
 import photographerRoutes from './routes/photographerRoutes.js';
+import bookAlbumRoutes from './routes/bookAlbumRoutes.js';
 
 const app = express();
 
@@ -26,5 +27,6 @@ app.use('/api/curate', curateRoutes);
 app.use('/api/archive', archiveRoutes);
 app.use('/api/client-invites', clientInviteRoutes);
 app.use('/api/photographer', photographerRoutes);
+app.use('/api/book-albums', bookAlbumRoutes);
 
 export default app;

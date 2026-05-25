@@ -75,6 +75,10 @@ const curateSchema = new mongoose.Schema(
       type: [curateMediaSchema],
       default: [],
     },
+    selectedAlbumId: {
+      type: String,
+      default: '',
+    },
     selectedTemplate: {
       type: String,
       default: 'template-1',

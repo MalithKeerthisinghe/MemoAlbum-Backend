@@ -1,4 +1,5 @@
 import Curate from '../models/Curate.js';
+import Template from '../models/Template.js';
 import User from '../models/User.js';
 
 const TEMPLATE_SLOT_MAP = {
@@ -32,6 +33,24 @@ const normalizeMediaItems = (mediaItems = []) =>
     .sort((a, b) => a.order - b.order);
 
 const getPhotographerId = (req) => req.user?.id || req.user?._id;
+
+export const listCurateTemplates = async (req, res) => {
+  try {
+    const templates = await Template.find({ isActive: true }).sort({ updatedAt: -1, createdAt: -1 });
+
+    return res.json({
+      success: true,
+      templates,
+    });
+  } catch (error) {
+    console.error('List Curate Templates Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
 
 const buildTemplateSpreads = ({ mediaItems = [], templateId = DEFAULT_TEMPLATE_ID }) => {
   const slots = TEMPLATE_SLOT_MAP[templateId] || TEMPLATE_SLOT_MAP[DEFAULT_TEMPLATE_ID];
@@ -80,7 +99,7 @@ export const saveCurateDraft = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Photographer not authenticated' });
     }
 
-    const { albumName, weddingDate, accessControl, coverPhoto, coverPhotoName, mediaItems, progress, selectedTemplate, status } = req.body;
+    const { albumName, weddingDate, accessControl, coverPhoto, coverPhotoName, mediaItems, progress, selectedAlbumId, selectedTemplate, status } = req.body;
 
     if (!albumName) {
       return res.status(400).json({
@@ -104,6 +123,7 @@ export const saveCurateDraft = async (req, res) => {
       coverPhoto: coverPhoto || '',
       coverPhotoName: coverPhotoName || '',
       mediaItems: normalizedMediaItems,
+      selectedAlbumId: selectedAlbumId || '',
       selectedTemplate: selectedTemplate || DEFAULT_TEMPLATE_ID,
       progress: Number.isFinite(Number(progress)) ? Number(progress) : Math.min(100, normalizedMediaItems.length * 10),
       status: normalizeCurateStatus(status),
