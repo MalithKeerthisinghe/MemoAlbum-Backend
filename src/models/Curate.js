@@ -44,11 +44,6 @@ const curateSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    pageSlug: {
-      type: String,
-      default: 'photographer-admin/curate',
-      index: true,
-    },
     albumName: {
       type: String,
       required: true,
@@ -75,14 +70,6 @@ const curateSchema = new mongoose.Schema(
       type: [curateMediaSchema],
       default: [],
     },
-    selectedAlbumId: {
-      type: String,
-      default: '',
-    },
-    selectedTemplate: {
-      type: String,
-      default: 'template-1',
-    },
     status: {
       type: String,
       enum: ['save_draft', 'saved', 'draft', 'published'],
@@ -98,6 +85,6 @@ const curateSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-curateSchema.index({ photographerId: 1, pageSlug: 1 }, { unique: true });
+curateSchema.index({ photographerId: 1, updatedAt: -1 });
 
 export default mongoose.model('Curate', curateSchema);
