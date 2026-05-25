@@ -99,9 +99,21 @@ export const saveCurateDraft = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Photographer not authenticated' });
     }
 
-    const { albumName, weddingDate, accessControl, coverPhoto, coverPhotoName, mediaItems, progress, selectedAlbumId, selectedTemplate, status } = req.body;
+    const {
+      curateId,
+      albumName,
+      weddingDate,
+      accessControl,
+      coverPhoto,
+      coverPhotoName,
+      mediaItems,
+      progress,
+      selectedAlbumId,
+      selectedTemplate,
+      status,
+    } = req.body;
 
-    if (!albumName) {
+    if (!albumName || !String(albumName).trim()) {
       return res.status(400).json({
         success: false,
         message: 'Album name is required',
@@ -116,8 +128,7 @@ export const saveCurateDraft = async (req, res) => {
     const normalizedMediaItems = normalizeMediaItems(Array.isArray(mediaItems) ? mediaItems : []);
     const nextPayload = {
       photographerId,
-      pageSlug: 'photographer-admin/curate',
-      albumName,
+      albumName: String(albumName).trim(),
       weddingDate: weddingDate ? new Date(weddingDate) : null,
       accessControl: accessControl || 'public',
       coverPhoto: coverPhoto || '',
@@ -129,15 +140,38 @@ export const saveCurateDraft = async (req, res) => {
       status: normalizeCurateStatus(status),
     };
 
-    const savedDraft = await Curate.findOneAndUpdate(
-      { photographerId, pageSlug: 'photographer-admin/curate' },
-      { $set: nextPayload },
-      { new: true, upsert: true, runValidators: true }
-    );
+    let savedDraft;
 
-    return res.status(200).json({
+    if (curateId) {
+      savedDraft = await Curate.findOneAndUpdate(
+        { _id: curateId, photographerId },
+        { $set: nextPayload },
+        { new: true, runValidators: true }
+      );
+
+      if (!savedDraft) {
+        return res.status(404).json({ success: false, message: 'Curate album not found' });
+      }
+    } else {
+      const currentDraft = await Curate.findOne({ photographerId, pageSlug: 'photographer-admin/curate' });
+
+      if (currentDraft) {
+        savedDraft = await Curate.findOneAndUpdate(
+          { _id: currentDraft._id, photographerId },
+          { $set: nextPayload },
+          { new: true, runValidators: true }
+        );
+      } else {
+        savedDraft = await Curate.create({
+          ...nextPayload,
+          pageSlug: 'photographer-admin/curate',
+        });
+      }
+    }
+
+    return res.status(curateId ? 200 : 201).json({
       success: true,
-      message: 'Curate draft saved successfully',
+      message: curateId ? 'Curate album updated' : 'New curate album created',
       curate: savedDraft,
     });
   } catch (error) {
@@ -158,7 +192,9 @@ export const getCurateDraft = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Photographer not authenticated' });
     }
 
-    const curate = await Curate.findOne({ photographerId, pageSlug: 'photographer-admin/curate' });
+    const curate =
+      (await Curate.findOne({ photographerId, pageSlug: 'photographer-admin/curate' })) ||
+      (await Curate.findOne({ photographerId }).sort({ updatedAt: -1 }));
 
     return res.json({
       success: true,
@@ -215,7 +251,13 @@ export const listCurateDrafts = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Photographer not authenticated' });
     }
 
-    const curates = await Curate.find({ photographerId }).sort({ updatedAt: -1 });
+    // Return both saved and draft curates for the photographer
+    const curates = await Curate.find({
+      photographerId,
+      status: { $in: ['saved', 'published', 'save_draft', 'draft'] },
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
 
     return res.json({
       success: true,
@@ -223,6 +265,35 @@ export const listCurateDrafts = async (req, res) => {
     });
   } catch (error) {
     console.error('List Curate Drafts Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
+export const deleteCurateById = async (req, res) => {
+  try {
+    const photographerId = getPhotographerId(req);
+    const { id } = req.params;
+
+    if (!photographerId) {
+      return res.status(401).json({ success: false, message: 'Photographer not authenticated' });
+    }
+
+    const deleted = await Curate.findOneAndDelete({ _id: id, photographerId });
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Curate album not found' });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Curate album deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete Curate By Id Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Server error',

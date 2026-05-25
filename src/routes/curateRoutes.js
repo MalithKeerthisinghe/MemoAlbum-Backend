@@ -1,6 +1,7 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
 import {
+  deleteCurateById,
   deleteCurateDraft,
   getCurateDraft,
   getCurateTemplatePreview,
@@ -19,5 +20,6 @@ router.get('/templates', listCurateTemplates);
 router.get('/current', getCurateDraft);
 router.get('/current/template-preview', getCurateTemplatePreview);
 router.delete('/current', deleteCurateDraft);
+router.delete('/:id', deleteCurateById);
 
 export default router;
