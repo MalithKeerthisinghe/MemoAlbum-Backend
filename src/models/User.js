@@ -12,7 +12,6 @@ const userSchema = new mongoose.Schema({
   password: String,
   bio: String,
   profilePic: String,
-  subscriptionPlan: String,
   socials: {
     instagram: String,
     facebook: String,

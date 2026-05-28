@@ -64,7 +64,6 @@ class AdminUserController {
         email: user.email || '',
         role: user.roleId?.roleName || (user.roleId?.toString?.() === LEGACY_ADMIN_ROLE_ID ? 'admin' : 'client'),
         contact: user.phone || '',
-        subscription: user.subscriptionPlan || '',
         status: user.status === 'active' ? 'Active' : 'Offline',
         avatar: user.profilePic || '',
         bio: user.bio || '',
@@ -110,7 +109,6 @@ class AdminUserController {
         bio,
         roleId,
         role,
-        subscriptionPlan,
         instagram,
         facebook,
         tiktok,
@@ -160,7 +158,6 @@ class AdminUserController {
         user.phone = phoneNumber || user.phone;
         user.bio = bio || user.bio;
         user.roleId = roleDoc._id;
-        user.subscriptionPlan = subscriptionPlan || user.subscriptionPlan;
         user.status = status;
         user.profilePic = profileImage || user.profilePic;
         user.partnerEmail = isCoupleRole ? normalizedPartnerEmail : '';
@@ -215,7 +212,6 @@ class AdminUserController {
           phone: phoneNumber,
           bio,
           roleId: roleDoc._id,
-          subscriptionPlan: subscriptionPlan || 'photographer-1-year',
           status,
           profilePic: profileImage,
           socials,

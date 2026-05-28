@@ -19,7 +19,6 @@ const collectionDefinitions = [
 			{ key: { roleId: 1 }, options: { name: 'idx_users_role_id' } },
 			{ key: { status: 1 }, options: { name: 'idx_users_status' } },
 			{ key: { createdBy: 1 }, options: { name: 'idx_users_created_by' } },
-			{ key: { subscriptionPlan: 1 }, options: { name: 'idx_users_subscription' } },
 		],
 	},
 	{
@@ -119,7 +118,6 @@ const seedDefaultAdmin = async (db) => {
 		status: 'active',
 		bio: '',
 		profilePic: '',
-		subscriptionPlan: null,
 		socials: {
 			instagram: '',
 			facebook: '',

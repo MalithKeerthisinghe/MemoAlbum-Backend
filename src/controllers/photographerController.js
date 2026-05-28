@@ -26,7 +26,6 @@ class PhotographerController {
         role: user.roleId?.roleName || 'client',
         contact: user.phone || '',
         phone: user.phone || '',
-        subscription: user.subscriptionPlan || '',
         status: user.status === 'active' ? 'Active' : 'Offline',
         avatar: user.profilePic || '',
         bio: user.bio || '',
