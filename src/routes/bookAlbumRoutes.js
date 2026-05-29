@@ -6,9 +6,12 @@ import {
   updateSlotAssignment,
   saveBookAlbum,
   listBookAlbums,
+  listPublicBookAlbums,
 } from '../controllers/bookAlbumController.js';
 
 const router = express.Router();
+
+router.get('/public', listPublicBookAlbums);
 
 router.use(protect);
 

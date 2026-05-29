@@ -1,6 +1,52 @@
 import User from '../models/User.js';
 
+const mapPhotographer = (user) => ({
+  id: user._id,
+  name: user.name || '',
+  email: user.email || '',
+  role: user.roleId?.roleName || 'photographer',
+  contact: user.phone || '',
+  phone: user.phone || '',
+  status: user.status === 'active' ? 'Active' : 'Offline',
+  avatar: user.profilePic || '',
+  bio: user.bio || '',
+  profileImage: user.profilePic || '',
+  image: user.profilePic || '',
+  partnerEmail: user.partnerEmail || '',
+  roleId: user.roleId?._id || user.roleId || null,
+  phoneNumber: user.phone || '',
+  isActive: user.status === 'active',
+  instagram: user.socials?.instagram || '',
+  facebook: user.socials?.facebook || '',
+  tiktok: user.socials?.tiktok || '',
+  x: user.socials?.x || '',
+  youtube: user.socials?.youtube || '',
+  linkedin: user.socials?.linkedin || '',
+  website: user.socials?.website || '',
+});
+
 class PhotographerController {
+  static async getPublicPhotographers(req, res) {
+    try {
+      const users = await User.find()
+        .populate('roleId', 'roleName')
+        .sort({ createdAt: -1 });
+
+      const photographers = users
+        .filter((user) => (user.roleId?.roleName || '').toLowerCase() === 'photographer')
+        .map(mapPhotographer);
+
+      return res.json({ success: true, users: photographers });
+    } catch (error) {
+      console.error('Get Public Photographers Error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message,
+      });
+    }
+  }
+
   static async getUsers(req, res) {
     try {
       // Get photographer ID from authenticated user
@@ -19,29 +65,7 @@ class PhotographerController {
         .populate('roleId', 'roleName')
         .sort({ createdAt: -1 });
 
-      const normalizedUsers = users.map((user) => ({
-        id: user._id,
-        name: user.name || '',
-        email: user.email || '',
-        role: user.roleId?.roleName || 'client',
-        contact: user.phone || '',
-        phone: user.phone || '',
-        status: user.status === 'active' ? 'Active' : 'Offline',
-        avatar: user.profilePic || '',
-        bio: user.bio || '',
-        partnerEmail: user.partnerEmail || '',
-        roleId: user.roleId?._id || user.roleId || null,
-        profileImage: user.profilePic || '',
-        phoneNumber: user.phone || '',
-        isActive: user.status === 'active',
-        instagram: user.socials?.instagram || '',
-        facebook: user.socials?.facebook || '',
-        tiktok: user.socials?.tiktok || '',
-        x: user.socials?.x || '',
-        youtube: user.socials?.youtube || '',
-        linkedin: user.socials?.linkedin || '',
-        website: user.socials?.website || '',
-      }));
+      const normalizedUsers = users.map(mapPhotographer);
 
       return res.json({ success: true, users: normalizedUsers });
     } catch (error) {

@@ -104,3 +104,103 @@ export const createArchive = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
+
+export const deleteArchive = async (req, res) => {
+  try {
+    const photographerId = getPhotographerId(req);
+    if (!photographerId) {
+      return res.status(401).json({ success: false, message: 'Photographer not authenticated' });
+    }
+
+    const { id } = req.params;
+    const archive = await Archive.findOne({ _id: id, photographerId });
+
+    if (!archive) {
+      return res.status(404).json({ success: false, message: 'Archive not found' });
+    }
+
+    const albumId = archive.albumId?.toString?.();
+    if (albumId) {
+      await Promise.all([
+        Album.updateOne({ _id: albumId, photographerId }, { $set: { status: 'saved' } }),
+        Curate.updateOne({ _id: albumId, photographerId }, { $set: { status: 'saved' } }),
+      ]);
+    }
+
+    await Archive.deleteOne({ _id: id, photographerId });
+
+    return res.json({
+      success: true,
+      message: 'Archive deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete Archive Error:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+export const renameArchiveFolder = async (req, res) => {
+  try {
+    const photographerId = getPhotographerId(req);
+    if (!photographerId) {
+      return res.status(401).json({ success: false, message: 'Photographer not authenticated' });
+    }
+
+    const { folderName } = req.params;
+    const { archiveFolderName } = req.body;
+
+    if (!archiveFolderName || !String(archiveFolderName).trim()) {
+      return res.status(400).json({ success: false, message: 'Archive folder name is required' });
+    }
+
+    const nextFolderName = String(archiveFolderName).trim();
+    const result = await Archive.updateMany(
+      { photographerId, archiveFolderName: folderName },
+      { $set: { archiveFolderName: nextFolderName } }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Archive folder renamed successfully',
+      modifiedCount: result.modifiedCount || 0,
+      archiveFolderName: nextFolderName,
+    });
+  } catch (error) {
+    console.error('Rename Archive Folder Error:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+export const deleteArchiveFolder = async (req, res) => {
+  try {
+    const photographerId = getPhotographerId(req);
+    if (!photographerId) {
+      return res.status(401).json({ success: false, message: 'Photographer not authenticated' });
+    }
+
+    const { folderName } = req.params;
+    const folderArchives = await Archive.find({ photographerId, archiveFolderName: folderName });
+    if (folderArchives.length === 0) {
+      return res.status(404).json({ success: false, message: 'Archive folder not found' });
+    }
+
+    const albumIds = folderArchives.map((archive) => archive.albumId?.toString?.()).filter(Boolean);
+    if (albumIds.length > 0) {
+      await Promise.all([
+        Album.updateMany({ _id: { $in: albumIds }, photographerId }, { $set: { status: 'saved' } }),
+        Curate.updateMany({ _id: { $in: albumIds }, photographerId }, { $set: { status: 'saved' } }),
+      ]);
+    }
+
+    const deleteResult = await Archive.deleteMany({ photographerId, archiveFolderName: folderName });
+
+    return res.json({
+      success: true,
+      message: 'Archive folder deleted successfully',
+      deletedCount: deleteResult.deletedCount || 0,
+    });
+  } catch (error) {
+    console.error('Delete Archive Folder Error:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};

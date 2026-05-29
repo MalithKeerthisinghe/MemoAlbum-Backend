@@ -4,6 +4,7 @@ import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+router.get('/public-users', PhotographerController.getPublicPhotographers);
 router.get('/users', protect, PhotographerController.getUsers);
 router.post('/update-profile', protect, PhotographerController.updateProfile);
 

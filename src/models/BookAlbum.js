@@ -80,6 +80,15 @@ const bookAlbumSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    albumType: {
+      type: String,
+      enum: ['Wedding', 'Engagement'],
+      default: 'Wedding',
+    },
+    mainSiteShowStatus: {
+      type: Boolean,
+      default: false,
+    },
     pageLayouts: [pageLayoutSchema],
     totalPages: {
       type: Number,

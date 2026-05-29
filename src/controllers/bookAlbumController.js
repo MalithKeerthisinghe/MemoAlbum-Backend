@@ -71,7 +71,7 @@ const buildPageLayouts = (mediaItems = [], template) => {
 export const createBookAlbum = async (req, res) => {
   try {
     const photographerId = getPhotographerId(req);
-    const { curateId, templateId } = req.body;
+    const { curateId, templateId, albumType = 'Wedding', mainSiteShowStatus = false } = req.body;
 
     if (!curateId || !templateId) {
       return res.status(400).json({
@@ -128,6 +128,8 @@ export const createBookAlbum = async (req, res) => {
     if (bookAlbum) {
       bookAlbum.templateName = template.name;
       bookAlbum.albumName = curate.albumName;
+      bookAlbum.albumType = albumType;
+      bookAlbum.mainSiteShowStatus = Boolean(mainSiteShowStatus);
       bookAlbum.pageLayouts = pageLayouts;
       bookAlbum.totalPages = pageLayouts.length;
       bookAlbum.totalSlots = totalSlots;
@@ -143,6 +145,8 @@ export const createBookAlbum = async (req, res) => {
         templateId,
         templateName: template.name,
         albumName: curate.albumName,
+        albumType,
+        mainSiteShowStatus: Boolean(mainSiteShowStatus),
         pageLayouts,
         totalPages: pageLayouts.length,
         totalSlots,
@@ -174,7 +178,7 @@ export const getBookAlbum = async (req, res) => {
     const { bookAlbumId } = req.params;
 
     const bookAlbum = await BookAlbum.findById(bookAlbumId)
-      .populate('curateId', 'albumName mediaItems')
+      .populate('curateId', 'albumName mediaItems coverPhoto coverPhotoName weddingDate')
       .populate('templateId', 'name description pages slots');
 
     if (!bookAlbum) {
@@ -303,7 +307,7 @@ export const saveBookAlbum = async (req, res) => {
   try {
     const photographerId = getPhotographerId(req);
     const { bookAlbumId } = req.params;
-    const { status = 'saved' } = req.body;
+    const { status = 'saved', albumType, mainSiteShowStatus } = req.body;
 
     const bookAlbum = await BookAlbum.findById(bookAlbumId);
 
@@ -322,6 +326,12 @@ export const saveBookAlbum = async (req, res) => {
     }
 
     bookAlbum.status = status;
+    if (albumType) {
+      bookAlbum.albumType = albumType;
+    }
+    if (typeof mainSiteShowStatus === 'boolean') {
+      bookAlbum.mainSiteShowStatus = mainSiteShowStatus;
+    }
     await bookAlbum.save();
 
     return res.json({
@@ -354,6 +364,27 @@ export const listBookAlbums = async (req, res) => {
     });
   } catch (error) {
     console.error('List Book Albums Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
+export const listPublicBookAlbums = async (req, res) => {
+  try {
+    const bookAlbums = await BookAlbum.find({ mainSiteShowStatus: true })
+      .populate('curateId', 'albumName coverPhoto coverPhotoName weddingDate')
+      .populate('templateId', 'name')
+      .sort({ updatedAt: -1 });
+
+    return res.json({
+      success: true,
+      bookAlbums,
+    });
+  } catch (error) {
+    console.error('List Public Book Albums Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Server error',
