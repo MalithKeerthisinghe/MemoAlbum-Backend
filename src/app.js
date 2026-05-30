@@ -9,6 +9,7 @@ import archiveRoutes from './routes/archiveRoutes.js';
 import clientInviteRoutes from './routes/clientInviteRoutes.js';
 import photographerRoutes from './routes/photographerRoutes.js';
 import bookAlbumRoutes from './routes/bookAlbumRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
 
 const app = express();
 
@@ -28,5 +29,6 @@ app.use('/api/archive', archiveRoutes);
 app.use('/api/client-invites', clientInviteRoutes);
 app.use('/api/photographer', photographerRoutes);
 app.use('/api/book-albums', bookAlbumRoutes);
+app.use('/api/contact', contactRoutes);
 
 export default app;

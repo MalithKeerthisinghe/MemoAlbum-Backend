@@ -375,8 +375,8 @@ export const listBookAlbums = async (req, res) => {
 export const listPublicBookAlbums = async (req, res) => {
   try {
     const bookAlbums = await BookAlbum.find({ mainSiteShowStatus: true })
-      .populate('curateId', 'albumName coverPhoto coverPhotoName weddingDate')
-      .populate('templateId', 'name')
+      .populate('curateId', 'albumName mediaItems coverPhoto coverPhotoName weddingDate')
+      .populate('templateId', 'name description pages slots accent coverImage')
       .sort({ updatedAt: -1 });
 
     return res.json({
