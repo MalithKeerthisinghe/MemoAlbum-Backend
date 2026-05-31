@@ -208,3 +208,116 @@ export const logout = async (req, res) => {
     });
   }
 };
+
+export const getCurrentUser = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    const user = await User.findById(userId).populate('roleId', 'roleName');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const roleName = user.roleId?.roleName?.toLowerCase?.() || req.user?.role || 'client';
+
+    return res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        bio: user.bio || '',
+        profilePic: user.profilePic || '',
+        role: roleName,
+        status: user.status || 'active',
+        settings: {
+          profileVisibility: user.settings?.profileVisibility ?? true,
+          twoFactorAuth: user.settings?.twoFactorAuth ?? false,
+          emailNotifications: user.settings?.emailNotifications ?? true,
+          pushNotifications: user.settings?.pushNotifications ?? false,
+          shareActivity: user.settings?.shareActivity ?? true,
+          newCollectionAlerts: user.settings?.newCollectionAlerts ?? true,
+          editorialMonthly: user.settings?.editorialMonthly ?? true,
+          partnerCollaborations: user.settings?.partnerCollaborations ?? false,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('Get Current User Error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const updateCurrentUser = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const { name, email, phone, bio, profilePic, settings } = req.body || {};
+
+    if (typeof name === 'string') user.name = name.trim();
+    if (typeof email === 'string' && email.trim()) user.email = email.trim().toLowerCase();
+    if (typeof phone === 'string') user.phone = phone.trim();
+    if (typeof bio === 'string') user.bio = bio;
+    if (typeof profilePic === 'string') user.profilePic = profilePic;
+
+    if (settings && typeof settings === 'object') {
+      user.settings = {
+        ...(user.settings || {}),
+        profileVisibility: typeof settings.profileVisibility === 'boolean' ? settings.profileVisibility : user.settings?.profileVisibility ?? true,
+        twoFactorAuth: typeof settings.twoFactorAuth === 'boolean' ? settings.twoFactorAuth : user.settings?.twoFactorAuth ?? false,
+        emailNotifications: typeof settings.emailNotifications === 'boolean' ? settings.emailNotifications : user.settings?.emailNotifications ?? true,
+        pushNotifications: typeof settings.pushNotifications === 'boolean' ? settings.pushNotifications : user.settings?.pushNotifications ?? false,
+        shareActivity: typeof settings.shareActivity === 'boolean' ? settings.shareActivity : user.settings?.shareActivity ?? true,
+        newCollectionAlerts: typeof settings.newCollectionAlerts === 'boolean' ? settings.newCollectionAlerts : user.settings?.newCollectionAlerts ?? true,
+        editorialMonthly: typeof settings.editorialMonthly === 'boolean' ? settings.editorialMonthly : user.settings?.editorialMonthly ?? true,
+        partnerCollaborations: typeof settings.partnerCollaborations === 'boolean' ? settings.partnerCollaborations : user.settings?.partnerCollaborations ?? false,
+      };
+    }
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        bio: user.bio || '',
+        profilePic: user.profilePic || '',
+        status: user.status || 'active',
+        settings: {
+          profileVisibility: user.settings?.profileVisibility ?? true,
+          twoFactorAuth: user.settings?.twoFactorAuth ?? false,
+          emailNotifications: user.settings?.emailNotifications ?? true,
+          pushNotifications: user.settings?.pushNotifications ?? false,
+          shareActivity: user.settings?.shareActivity ?? true,
+          newCollectionAlerts: user.settings?.newCollectionAlerts ?? true,
+          editorialMonthly: user.settings?.editorialMonthly ?? true,
+          partnerCollaborations: user.settings?.partnerCollaborations ?? false,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('Update Current User Error:', err);
+
+    if (err?.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Email already in use' });
+    }
+
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

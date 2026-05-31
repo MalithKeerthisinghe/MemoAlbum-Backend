@@ -32,6 +32,11 @@ const curateMediaSchema = new mongoose.Schema(
       enum: ['image', 'video', 'other'],
       default: 'image',
     },
+    favoritedBy: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
+    },
   },
   { _id: false }
 );
@@ -42,6 +47,11 @@ const curateSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      favoritedBy: {
+        type: [mongoose.Schema.Types.ObjectId],
+        ref: 'User',
+        default: [],
+      },
       index: true,
     },
     albumName: {

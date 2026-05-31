@@ -35,6 +35,16 @@ const userSchema = new mongoose.Schema({
     enum: ['sent', 'accepted', 'active'],
     default: 'sent'
   },
+  settings: {
+    profileVisibility: { type: Boolean, default: true },
+    twoFactorAuth: { type: Boolean, default: false },
+    emailNotifications: { type: Boolean, default: true },
+    pushNotifications: { type: Boolean, default: false },
+    shareActivity: { type: Boolean, default: true },
+    newCollectionAlerts: { type: Boolean, default: true },
+    editorialMonthly: { type: Boolean, default: true },
+    partnerCollaborations: { type: Boolean, default: false },
+  },
   status: {
     type: String,
     default: "active"
