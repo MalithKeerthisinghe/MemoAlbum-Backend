@@ -76,9 +76,26 @@ const curateSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    endPhoto: {
+      type: String,
+      default: '',
+    },
+    endPhotoName: {
+      type: String,
+      default: '',
+    },
     mediaItems: {
       type: [curateMediaSchema],
       default: [],
+    },
+    mediaTransforms: {
+      type: Map,
+      of: new mongoose.Schema({
+        zoom: { type: Number, default: 1 },
+        x: { type: Number, default: 0 },
+        y: { type: Number, default: 0 },
+      }, { _id: false }),
+      default: {},
     },
     status: {
       type: String,

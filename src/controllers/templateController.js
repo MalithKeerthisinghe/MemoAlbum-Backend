@@ -25,9 +25,15 @@ const normalizePages = (pages = []) =>
       pageLabel: page.pageLabel || `Page ${Number.isFinite(Number(page.pageNumber)) ? Number(page.pageNumber) : index + 1}`,
       presetKey: page.presetKey || 'mosaic-portrait',
       accent: page.accent || '#9b0044',
+      pageColor: page.pageColor || '#ffffff',
       slots: normalizeSlots(Array.isArray(page.slots) ? page.slots : []),
     }))
     .sort((left, right) => left.pageNumber - right.pageNumber);
+
+const normalizeSpecialPage = (page = {}, fallbackColor = '#ffffff') => ({
+  pageColor: page?.pageColor || fallbackColor,
+  slots: normalizeSlots(Array.isArray(page?.slots) ? page.slots : []),
+});
 
 export const listTemplates = async (req, res) => {
   try {
@@ -69,7 +75,7 @@ export const saveTemplate = async (req, res) => {
     }
 
     const templateId = req.params.id || req.body.templateId;
-    const { name, presetKey, description, slots, pages, accent, isActive } = req.body;
+    const { name, presetKey, description, slots, pages, accent, pageColor, coverDesign, endPageDesign, isActive } = req.body;
 
     if (!name || !presetKey) {
       return res.status(400).json({ success: false, message: 'Template name and preset are required' });
@@ -82,6 +88,9 @@ export const saveTemplate = async (req, res) => {
       slots: normalizeSlots(Array.isArray(slots) ? slots : []),
       pages: normalizePages(Array.isArray(pages) ? pages : []),
       accent: accent || '#9b0044',
+      pageColor: pageColor || '#ffffff',
+      coverDesign: normalizeSpecialPage(coverDesign, pageColor || '#ffffff'),
+      endPageDesign: normalizeSpecialPage(endPageDesign, pageColor || '#ffffff'),
       isActive: isActive !== false,
       updatedBy: req.user?._id || req.user?.id || null,
     };

@@ -71,7 +71,15 @@ const buildPageLayouts = (mediaItems = [], template) => {
 export const createBookAlbum = async (req, res) => {
   try {
     const photographerId = getPhotographerId(req);
-    const { curateId, templateId, albumType = 'Wedding', mainSiteShowStatus = false } = req.body;
+    const { 
+      curateId, 
+      templateId, 
+      albumType = 'Wedding', 
+      mainSiteShowStatus = false, 
+      endPhoto = '', 
+      endPhotoName = '',
+      mediaTransforms = {}
+    } = req.body;
 
     if (!curateId || !templateId) {
       return res.status(400).json({
@@ -115,6 +123,21 @@ export const createBookAlbum = async (req, res) => {
     // Build page layouts from template DB structure + curate media
     const pageLayouts = buildPageLayouts(mediaItems, template);
 
+    // Apply media transforms (crop/zoom) to slot assignments
+    pageLayouts.forEach((page) => {
+      page.slotAssignments.forEach((slot) => {
+        if (slot.mediaId && mediaTransforms[slot.mediaId]) {
+          slot.cropTransform = {
+            zoom: mediaTransforms[slot.mediaId].zoom || 1,
+            x: mediaTransforms[slot.mediaId].x || 0,
+            y: mediaTransforms[slot.mediaId].y || 0,
+          };
+        } else if (!slot.cropTransform) {
+          slot.cropTransform = { zoom: 1, x: 0, y: 0 };
+        }
+      });
+    });
+
     const totalSlots = pageLayouts.reduce((sum, page) => sum + page.slotAssignments.length, 0);
     const filledSlots = pageLayouts.reduce((sum, page) => {
       return sum + page.slotAssignments.filter((slot) => slot.mediaId).length;
@@ -136,6 +159,8 @@ export const createBookAlbum = async (req, res) => {
       bookAlbum.filledSlots = filledSlots;
       bookAlbum.progress = progress;
       bookAlbum.status = 'draft';
+      bookAlbum.endPhoto = endPhoto;
+      bookAlbum.endPhotoName = endPhotoName;
       await bookAlbum.save();
     } else {
       wasCreated = true;
@@ -153,6 +178,8 @@ export const createBookAlbum = async (req, res) => {
         filledSlots,
         progress,
         status: 'draft',
+        endPhoto,
+        endPhotoName,
       });
       await bookAlbum.save();
     }
@@ -265,6 +292,16 @@ export const updateSlotAssignment = async (req, res) => {
       slotAssignment.fileSize = mediaItem.fileSize;
       slotAssignment.dataUrl = mediaItem.dataUrl;
       slotAssignment.mediaKind = mediaItem.mediaKind;
+      // Save crop transform if provided
+      if (mediaItem.cropTransform) {
+        slotAssignment.cropTransform = {
+          zoom: mediaItem.cropTransform.zoom || 1,
+          x: mediaItem.cropTransform.x || 0,
+          y: mediaItem.cropTransform.y || 0,
+        };
+      } else {
+        slotAssignment.cropTransform = { zoom: 1, x: 0, y: 0 };
+      }
     } else {
       // Clear the slot
       slotAssignment.mediaId = null;
@@ -274,6 +311,7 @@ export const updateSlotAssignment = async (req, res) => {
       slotAssignment.fileSize = 0;
       slotAssignment.dataUrl = '';
       slotAssignment.mediaKind = 'image';
+      slotAssignment.cropTransform = { zoom: 1, x: 0, y: 0 };
     }
 
     // Recalculate filled slots and progress
@@ -307,7 +345,7 @@ export const saveBookAlbum = async (req, res) => {
   try {
     const photographerId = getPhotographerId(req);
     const { bookAlbumId } = req.params;
-    const { status = 'saved', albumType, mainSiteShowStatus } = req.body;
+    const { status = 'saved', albumType, mainSiteShowStatus, endPhoto, endPhotoName } = req.body;
 
     const bookAlbum = await BookAlbum.findById(bookAlbumId);
 
@@ -331,6 +369,12 @@ export const saveBookAlbum = async (req, res) => {
     }
     if (typeof mainSiteShowStatus === 'boolean') {
       bookAlbum.mainSiteShowStatus = mainSiteShowStatus;
+    }
+    if (endPhoto !== undefined) {
+      bookAlbum.endPhoto = endPhoto;
+    }
+    if (endPhotoName !== undefined) {
+      bookAlbum.endPhotoName = endPhotoName;
     }
     await bookAlbum.save();
 

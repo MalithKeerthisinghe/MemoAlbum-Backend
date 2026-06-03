@@ -61,6 +61,24 @@ const templatePageSchema = new mongoose.Schema(
       type: String,
       default: '#9b0044',
     },
+    pageColor: {
+      type: String,
+      default: '#ffffff',
+    },
+    slots: {
+      type: [templateSlotSchema],
+      default: [],
+    },
+  },
+  { _id: false }
+);
+
+const templateSpecialPageSchema = new mongoose.Schema(
+  {
+    pageColor: {
+      type: String,
+      default: '#ffffff',
+    },
     slots: {
       type: [templateSlotSchema],
       default: [],
@@ -98,6 +116,18 @@ const templateSchema = new mongoose.Schema(
     accent: {
       type: String,
       default: '#9b0044',
+    },
+    pageColor: {
+      type: String,
+      default: '#ffffff',
+    },
+    coverDesign: {
+      type: templateSpecialPageSchema,
+      default: () => ({ pageColor: '#ffffff', slots: [] }),
+    },
+    endPageDesign: {
+      type: templateSpecialPageSchema,
+      default: () => ({ pageColor: '#ffffff', slots: [] }),
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

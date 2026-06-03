@@ -39,6 +39,20 @@ const slotAssignmentSchema = new mongoose.Schema(
       enum: ['image', 'video', 'other'],
       default: 'image',
     },
+    cropTransform: {
+      zoom: {
+        type: Number,
+        default: 1,
+      },
+      x: {
+        type: Number,
+        default: 0,
+      },
+      y: {
+        type: Number,
+        default: 0,
+      },
+    },
   },
   { _id: false }
 );
@@ -112,6 +126,14 @@ const bookAlbumSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       max: 100,
+    },
+    endPhoto: {
+      type: String,
+      default: '',
+    },
+    endPhotoName: {
+      type: String,
+      default: '',
     },
   },
   { timestamps: true }
