@@ -1,6 +1,80 @@
+import fs from 'fs';
+import path from 'path';
+import mongoose from 'mongoose';
 import Curate from '../models/Curate.js';
 import Template from '../models/Template.js';
 import User from '../models/User.js';
+
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'curate');
+
+const mimeTypeToExtension = (mimeType = '') => {
+  const map = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/heic': 'heic',
+    'video/mp4': 'mp4',
+    'video/quicktime': 'mov',
+    'video/webm': 'webm',
+    'video/ogg': 'ogv',
+  };
+  return map[mimeType.toLowerCase()] || mimeType.split('/').pop() || 'bin';
+};
+
+const getAbsoluteUploadUrl = (req, relativeUrl) => {
+  const protocol = req.protocol;
+  const host = req.get('host');
+  return `${protocol}://${host}${relativeUrl}`;
+};
+
+const saveDataUrlToDisk = async (item, curateId, req) => {
+  const dataUrl = item.dataUrl || '';
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) return item;
+
+  const mimeType = item.fileType || match[1] || 'application/octet-stream';
+  const base64Data = match[2];
+  const extension = mimeTypeToExtension(mimeType);
+  const fileId = item.id || `media-${Date.now()}`;
+  const filename = `${fileId}.${extension}`;
+  const outputDir = path.join(UPLOADS_DIR, String(curateId));
+  const outputPath = path.join(outputDir, filename);
+
+  await fs.promises.mkdir(outputDir, { recursive: true });
+  await fs.promises.writeFile(outputPath, Buffer.from(base64Data, 'base64'));
+
+  const relativeUrl = `/uploads/curate/${String(curateId)}/${filename}`;
+  return {
+    ...item,
+    dataUrl: getAbsoluteUploadUrl(req, relativeUrl),
+    fileType: mimeType,
+    fileName: item.fileName || filename,
+  };
+};
+
+const processMediaItemsForSave = async (mediaItems = [], curateId, req) => {
+  if (!Array.isArray(mediaItems)) return [];
+  return Promise.all(
+    mediaItems.map(async (item, index) => {
+      const normalized = {
+        id: item.id || `media-${index + 1}`,
+        order: Number.isFinite(Number(item.order)) ? Number(item.order) : index + 1,
+        fileName: item.fileName || '',
+        fileType: item.fileType || '',
+        fileSize: Number(item.fileSize) || 0,
+        dataUrl: item.dataUrl || item.url || item.src || '',
+        mediaKind: item.mediaKind || (item.fileType?.startsWith('video') ? 'video' : 'image'),
+      };
+
+      if (normalized.dataUrl.startsWith('data:')) {
+        return saveDataUrlToDisk(normalized, curateId, req);
+      }
+      return normalized;
+    })
+  );
+};
 
 const TEMPLATE_SLOT_MAP = {
   'template-1': ['leftHero', 'leftWide', 'leftBottom', 'leftTall', 'rightHero', 'rightBottomMain', 'rightBottomSide'],
@@ -128,7 +202,9 @@ export const saveCurateDraft = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Photographer not found' });
     }
 
-    const normalizedMediaItems = normalizeMediaItems(Array.isArray(mediaItems) ? mediaItems : []);
+    const currentDraft = curateId ? null : await Curate.findOne({ photographerId, pageSlug: 'photographer-admin/curate' });
+    const nextCurateId = curateId || currentDraft?._id?.toString() || new mongoose.Types.ObjectId().toString();
+    const normalizedMediaItems = await processMediaItemsForSave(Array.isArray(mediaItems) ? mediaItems : [], nextCurateId, req);
     const nextPayload = {
       photographerId,
       albumName: String(albumName).trim(),
@@ -152,24 +228,23 @@ export const saveCurateDraft = async (req, res) => {
       savedDraft = await Curate.findOneAndUpdate(
         { _id: curateId, photographerId },
         { $set: nextPayload },
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
       );
 
       if (!savedDraft) {
         return res.status(404).json({ success: false, message: 'Curate album not found' });
       }
     } else {
-      const currentDraft = await Curate.findOne({ photographerId, pageSlug: 'photographer-admin/curate' });
-
       if (currentDraft) {
         savedDraft = await Curate.findOneAndUpdate(
           { _id: currentDraft._id, photographerId },
           { $set: nextPayload },
-          { new: true, runValidators: true }
+          { returnDocument: 'after', runValidators: true }
         );
       } else {
         savedDraft = await Curate.create({
           ...nextPayload,
+          _id: nextCurateId,
           pageSlug: 'photographer-admin/curate',
         });
       }
