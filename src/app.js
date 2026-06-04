@@ -12,6 +12,7 @@ import favoriteRoutes from './routes/favoriteRoutes.js';
 import photographerRoutes from './routes/photographerRoutes.js';
 import bookAlbumRoutes from './routes/bookAlbumRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
+import galleryRoutes from './routes/galleryRoutes.js';
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/api/curate', curateRoutes);
 app.use('/api/archive', archiveRoutes);
 app.use('/api/client-invites', clientInviteRoutes);
 app.use('/api/favorites', favoriteRoutes);
+app.use('/api/gallery', galleryRoutes);
 app.use('/api/photographer', photographerRoutes);
 app.use('/api/book-albums', bookAlbumRoutes);
 app.use('/api/contact', contactRoutes);

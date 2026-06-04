@@ -32,6 +32,10 @@ const curateMediaSchema = new mongoose.Schema(
       enum: ['image', 'video', 'other'],
       default: 'image',
     },
+    caption: {
+      type: String,
+      default: '',
+    },
     favoritedBy: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: 'User',

@@ -124,8 +124,15 @@ export const login = async (req, res) => {
       });
     }
 
-    // 2. find user
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : '';
+
+    // 2. find user by primary email or partner email
+    const user = await User.findOne({
+      $or: [
+        { email: normalizedEmail },
+        { partnerEmail: normalizedEmail },
+      ],
+    });
 
     if (!user) {
       return res.status(400).json({
@@ -178,6 +185,7 @@ export const login = async (req, res) => {
         email: user.email,
         role: roleName || 'client',
         roleId: user.roleId,
+        partnerEmail: user.partnerEmail || '',
         status: user.status,
       },
     });
@@ -232,6 +240,7 @@ export const getCurrentUser = async (req, res) => {
         phone: user.phone || '',
         bio: user.bio || '',
         profilePic: user.profilePic || '',
+        partnerEmail: user.partnerEmail || '',
         role: roleName,
         status: user.status || 'active',
         settings: {
@@ -264,13 +273,14 @@ export const updateCurrentUser = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const { name, email, phone, bio, profilePic, settings } = req.body || {};
+    const { name, email, phone, bio, profilePic, settings, partnerEmail } = req.body || {};
 
     if (typeof name === 'string') user.name = name.trim();
     if (typeof email === 'string' && email.trim()) user.email = email.trim().toLowerCase();
     if (typeof phone === 'string') user.phone = phone.trim();
     if (typeof bio === 'string') user.bio = bio;
     if (typeof profilePic === 'string') user.profilePic = profilePic;
+    if (typeof partnerEmail === 'string') user.partnerEmail = partnerEmail.trim().toLowerCase();
 
     if (settings && typeof settings === 'object') {
       user.settings = {

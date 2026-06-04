@@ -1,5 +1,7 @@
+import crypto from 'crypto';
 import Album from '../models/Album.js';
 import ClientInvite from '../models/ClientInvite.js';
+import CoupleProfile from '../models/CoupleProfile.js';
 import Curate from '../models/Curate.js';
 import Role from '../models/Role.js';
 import User from '../models/User.js';
@@ -7,6 +9,10 @@ import bcrypt from 'bcryptjs';
 import { sendUserInvitationEmail } from '../utils/mailer.js';
 
 const getPhotographerId = (req) => req.user?.id || req.user?._id;
+
+const generateRandomPassword = (length = 12) => {
+  return crypto.randomBytes(Math.max(length, 16)).toString('base64url').slice(0, length);
+};
 
 const normalizeEmails = (emails = []) =>
   [...new Set(emails.map((email) => String(email || '').trim().toLowerCase()).filter(Boolean))];
@@ -66,8 +72,9 @@ export const createClientInvite = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Photographer not authenticated' });
     }
 
-    const { albumId, clientEmails, password } = req.body;
+    const { albumId, clientEmails, password: requestedPassword } = req.body;
     const normalizedEmails = normalizeEmails(Array.isArray(clientEmails) ? clientEmails : []);
+    const invitationPassword = String(requestedPassword || '').trim() || generateRandomPassword(12);
 
     if (!albumId) {
       return res.status(400).json({ success: false, message: 'Album is required' });
@@ -75,10 +82,6 @@ export const createClientInvite = async (req, res) => {
 
     if (normalizedEmails.length < 2) {
       return res.status(400).json({ success: false, message: 'Two client emails are required' });
-    }
-
-    if (!String(password || '').trim()) {
-      return res.status(400).json({ success: false, message: 'A shared password is required' });
     }
 
     const [album, curateAlbum] = await Promise.all([
@@ -92,22 +95,24 @@ export const createClientInvite = async (req, res) => {
     }
 
     const coupleRole = await Role.findOne({ roleName: { $regex: /^couple$/i } }).select('_id roleName');
-    const hashedPassword = await bcrypt.hash(String(password), 10);
+    const hashedPassword = await bcrypt.hash(invitationPassword, 10);
     const photographer = await User.findById(photographerId).select('name email');
     const photographerName = photographer?.name || 'MemoAlbum Photographer';
-    const partnerEmailMap = new Map([
-      [normalizedEmails[0], normalizedEmails[1]],
-      [normalizedEmails[1], normalizedEmails[0]],
-    ]);
+    
+    const primaryEmail = normalizedEmails[0];
+    const partnerEmail = normalizedEmails[1];
 
+    // Create or update TWO separate user records
     const createdUsers = [];
-    for (const email of normalizedEmails) {
-      const partnerEmail = partnerEmailMap.get(email) || '';
+
+    for (const currentEmail of normalizedEmails) {
+      const otherEmail = currentEmail === primaryEmail ? partnerEmail : primaryEmail;
+      
       const upsertPayload = {
-        name: getCustomerName(email),
-        email,
+        name: getCustomerName(currentEmail),
+        email: currentEmail,
         password: hashedPassword,
-        partnerEmail,
+        partnerEmail: otherEmail,
         createdBy: photographerId,
         createdByEmail: photographer?.email || '',
         roleId: coupleRole?._id || undefined,
@@ -115,17 +120,34 @@ export const createClientInvite = async (req, res) => {
         status: 'active',
       };
 
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        Object.assign(existingUser, upsertPayload);
-        await existingUser.save();
-        createdUsers.push(existingUser);
+      let user = await User.findOne({ email: currentEmail });
+      if (user) {
+        Object.assign(user, upsertPayload);
+        await user.save();
       } else {
-        const userDoc = await User.create(upsertPayload);
-        createdUsers.push(userDoc);
+        user = await User.create(upsertPayload);
+      }
+      createdUsers.push(user);
+
+      // Create separate couple profile for each user
+      let coupleProfile = await CoupleProfile.findOne({ userId: user._id });
+      if (coupleProfile) {
+        coupleProfile.primaryEmail = currentEmail;
+        coupleProfile.partnerEmail = otherEmail;
+        coupleProfile.status = 'active';
+        await coupleProfile.save();
+      } else {
+        await CoupleProfile.create({
+          userId: user._id,
+          primaryEmail: currentEmail,
+          partnerEmail: otherEmail,
+          status: 'active',
+        });
       }
     }
 
+
+    // Send emails to both primary and partner emails
     let successCount = 0;
     let failureCount = 0;
 
@@ -135,8 +157,8 @@ export const createClientInvite = async (req, res) => {
           toEmail: email,
           name: getCustomerName(email),
           roleName: 'couple',
-          password: String(password),
-          partnerEmail: partnerEmailMap.get(email) || '',
+          password: invitationPassword,
+          partnerEmail: email === primaryEmail ? partnerEmail : primaryEmail,
         });
         successCount += 1;
       } catch (emailError) {
@@ -144,6 +166,7 @@ export const createClientInvite = async (req, res) => {
         console.error('Failed sending invite email:', emailError.message);
       }
     }
+
 
     const inviteDoc = await ClientInvite.create({
       albumId,
@@ -159,6 +182,7 @@ export const createClientInvite = async (req, res) => {
       success: true,
       message: 'Client invitation saved and emails sent',
       invite: inviteDoc,
+      generatedPassword: invitationPassword,
       users: createdUsers.map((userDoc) => ({
         id: userDoc._id,
         email: userDoc.email,

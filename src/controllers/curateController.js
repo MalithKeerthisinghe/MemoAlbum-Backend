@@ -66,6 +66,7 @@ const processMediaItemsForSave = async (mediaItems = [], curateId, req) => {
         fileSize: Number(item.fileSize) || 0,
         dataUrl: item.dataUrl || item.url || item.src || '',
         mediaKind: item.mediaKind || (item.fileType?.startsWith('video') ? 'video' : 'image'),
+        caption: item.caption || '',
       };
 
       if (normalized.dataUrl.startsWith('data:')) {
