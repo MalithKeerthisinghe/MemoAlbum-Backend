@@ -5,6 +5,7 @@ import {
   listGalleryMedia,
   addGalleryMedia,
   toggleGalleryMediaFavorite,
+  deleteGalleryMedia,
 } from '../controllers/galleryController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -15,5 +16,6 @@ router.post('/folders', protect, createGalleryFolder);
 router.get('/media', protect, listGalleryMedia);
 router.post('/media', protect, addGalleryMedia);
 router.patch('/media/:mediaId/favorite', protect, toggleGalleryMediaFavorite);
+router.delete('/media/:mediaId', protect, deleteGalleryMedia);
 
 export default router;

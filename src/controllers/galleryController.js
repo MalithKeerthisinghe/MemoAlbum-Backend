@@ -120,12 +120,20 @@ export const addGalleryMedia = async (req, res) => {
     return res.status(404).json({ success: false, message: 'Couple profile not found.' });
   }
 
-  const folder = folderId
+  let folder = folderId
     ? profile.galleryFolders.find((f) => f.id === folderId)
     : profile.galleryFolders[0];
 
   if (!folder) {
-    return res.status(404).json({ success: false, message: 'Folder not found.' });
+    const defaultFolder = {
+      id: new mongoose.Types.ObjectId().toString(),
+      name: 'Gallery',
+      category: 'All Media',
+      createdAt: new Date(),
+      images: [],
+    };
+    profile.galleryFolders.unshift(defaultFolder);
+    folder = defaultFolder;
   }
 
   const createdItems = [];
@@ -182,6 +190,35 @@ export const addGalleryMedia = async (req, res) => {
   }
 
   return res.status(201).json({ success: true, data: createdItems.length === 1 ? createdItems[0] : createdItems });
+};
+
+export const deleteGalleryMedia = async (req, res) => {
+  const { mediaId } = req.params;
+  console.log('Deleting media for user:', req.user?._id, 'mediaId:', mediaId);
+
+  const profile = await CoupleProfile.findOne({ userId: req.user._id });
+  if (!profile) {
+    return res.status(404).json({ success: false, message: 'Couple profile not found.' });
+  }
+
+  let deletedImage = null;
+  profile.galleryFolders = profile.galleryFolders.map((folder) => {
+    const remainingImages = folder.images?.filter((img) => {
+      if (img.id === mediaId) {
+        deletedImage = img;
+        return false;
+      }
+      return true;
+    }) || [];
+    return { ...folder, images: remainingImages };
+  });
+
+  if (!deletedImage) {
+    return res.status(404).json({ success: false, message: 'Media item not found.' });
+  }
+
+  await profile.save();
+  return res.status(200).json({ success: true, data: deletedImage });
 };
 
 export const toggleGalleryMediaFavorite = async (req, res) => {
