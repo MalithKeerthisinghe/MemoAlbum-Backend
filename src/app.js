@@ -16,8 +16,17 @@ import galleryRoutes from './routes/galleryRoutes.js';
 
 const app = express();
 
+/*const uploadsPath = path.join(process.cwd(), 'uploads');
+app.use('/uploads', express.static(uploadsPath));*/
 const uploadsPath = path.join(process.cwd(), 'uploads');
-app.use('/uploads', express.static(uploadsPath));
+app.use('/uploads', express.static(uploadsPath, {
+  maxAge: '1d',
+  etag: true,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  },
+}));
 
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
