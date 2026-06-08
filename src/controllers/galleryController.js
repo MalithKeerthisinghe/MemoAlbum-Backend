@@ -95,21 +95,10 @@ export const listGalleryMedia = async (req, res) => {
   const profile = await CoupleProfile.findOne({ userId: req.user._id });
   const media = [];
 
-  /*(profile?.galleryFolders || []).forEach((folder) => {
+  (profile?.galleryFolders || []).forEach((folder) => {
     (folder.images || []).forEach((image) => {
       media.push({
         ...image,
-        folderId: folder.id,
-        folderName: folder.name,
-      });
-    });
-  });*/
-
-  (profile?.galleryFolders || []).forEach((folder) => {
-    (folder.images || []).forEach((image) => {
-      const imageObj = image.toObject ? image.toObject() : { ...image };
-      media.push({
-        ...imageObj,
         folderId: folder.id,
         folderName: folder.name,
       });
@@ -174,19 +163,10 @@ export const addGalleryMedia = async (req, res) => {
       uploadedAt: new Date(),
     };
 
-    /*if (mediaUrl.startsWith('data:')) {
+    if (mediaUrl.startsWith('data:')) {
       const saved = await saveDataUrlToDisk(
         {
           ...item,
-          dataUrl: mediaUrl,
-          fileType: item.fileType || '',
-          fileName: item.fileName || item.title || '',
-        },*/
-      if (mediaUrl.startsWith('data:')) {
-      const saved = await saveDataUrlToDisk(
-        {
-          ...item,
-          id: imageItem.id,
           dataUrl: mediaUrl,
           fileType: item.fileType || '',
           fileName: item.fileName || item.title || '',
@@ -222,23 +202,6 @@ export const deleteGalleryMedia = async (req, res) => {
   }
 
   let deletedImage = null;
-  /*profile.galleryFolders = profile.galleryFolders.map((folder) => {
-    const remainingImages = folder.images?.filter((img) => {
-      if (img.id === mediaId) {
-        deletedImage = img;
-        return false;
-      }
-      return true;
-    }) || [];
-    return { ...folder, images: remainingImages };
-  }); */
-
-  /*if (!deletedImage) {
-    return res.status(404).json({ success: false, message: 'Media item not found.' });
-  }
-
-  await profile.save(); */
-
   profile.galleryFolders = profile.galleryFolders.map((folder) => {
     const remainingImages = folder.images?.filter((img) => {
       if (img.id === mediaId) {
@@ -247,16 +210,14 @@ export const deleteGalleryMedia = async (req, res) => {
       }
       return true;
     }) || [];
-    return { ...folder.toObject(), images: remainingImages };
+    return { ...folder, images: remainingImages };
   });
 
   if (!deletedImage) {
     return res.status(404).json({ success: false, message: 'Media item not found.' });
   }
 
-  profile.markModified('galleryFolders');
   await profile.save();
-  
   return res.status(200).json({ success: true, data: deletedImage });
 };
 
@@ -269,29 +230,12 @@ export const toggleGalleryMediaFavorite = async (req, res) => {
     return res.status(404).json({ success: false, message: 'Couple profile not found.' });
   }
 
-  /*let foundImage = null;
+  let foundImage = null;
   for (const folder of profile.galleryFolders || []) {
     const image = folder.images?.find((img) => img.id === mediaId);
     if (image) {
       image.isFavorite = !image.isFavorite;
       foundImage = image;
-      break;
-    }
-  }*/
-
-  /*if (!foundImage) {
-    return res.status(404).json({ success: false, message: 'Media item not found.' });
-  }*/
-
-  //await profile.save();
-
-  let foundImage = null;
-  for (const folder of profile.galleryFolders || []) {
-    const imageIndex = folder.images?.findIndex((img) => img.id === mediaId);
-    if (imageIndex !== undefined && imageIndex !== -1) {
-      folder.images[imageIndex].isFavorite = !folder.images[imageIndex].isFavorite;
-      foundImage = folder.images[imageIndex];
-      profile.markModified('galleryFolders');
       break;
     }
   }

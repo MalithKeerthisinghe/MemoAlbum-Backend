@@ -63,7 +63,7 @@ export const adminLogin = async (req, res) => {
       await user.save();
     }
 
-   /* const roleName = await resolveUserRoleName(user);
+    const roleName = await resolveUserRoleName(user);
     const isLegacyAdmin = user.roleId?.toString?.() === LEGACY_ADMIN_ROLE_ID;
     const isDefaultAdminEmail = user.email?.toLowerCase?.() === DEFAULT_ADMIN_EMAIL;
 
@@ -97,48 +97,6 @@ export const adminLogin = async (req, res) => {
         name: user.name,
         email: user.email,
         role: roleName ?? (isLegacyAdmin || isDefaultAdminEmail ? "admin" : null),
-        roleId: user.roleId,
-      },
-    }); */
-
-    
-    const roleName = await resolveUserRoleName(user);
-    const isLegacyAdmin = user.roleId?.toString?.() === LEGACY_ADMIN_ROLE_ID;
-    const isDefaultAdminEmail = user.email?.toLowerCase?.() === DEFAULT_ADMIN_EMAIL;
-    const isEnvAdmin = user.email?.toLowerCase?.() === (process.env.ADMIN_EMAIL || '').toLowerCase();
-
-    // 4. role check (admin only)
-    if (roleName !== "admin" && !isLegacyAdmin && !isDefaultAdminEmail && !isEnvAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Admin only",
-      });
-    }
-
-    // 5. generate JWT token
-    const resolvedRole = roleName ?? ((isLegacyAdmin || isDefaultAdminEmail || isEnvAdmin) ? "admin" : null);
-
-    const token = jwt.sign(
-      {
-        id: user._id,
-        email: user.email,
-        role: resolvedRole,
-        roleId: user.roleId,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-
-    // 6. success response
-    return res.status(200).json({
-      success: true,
-      message: "Login successful",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: resolvedRole,
         roleId: user.roleId,
       },
     });
