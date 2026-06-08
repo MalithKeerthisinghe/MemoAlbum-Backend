@@ -78,7 +78,6 @@ const saveDataUrlToDisk = async (item, req, userId, folderId = 'general') => {
   };
 };
 
-// ====================== MAIN UPLOAD FUNCTION ======================
 // ====================== MAIN UPLOAD FUNCTION (UPDATED) ======================
 export const addGalleryMedia = async (req, res) => {
   const itemsPayload = Array.isArray(req.body.items) ? req.body.items : [req.body];
@@ -90,61 +89,73 @@ export const addGalleryMedia = async (req, res) => {
   const profile = await CoupleProfile.findOne({ userId: req.user._id });
   if (!profile) return res.status(404).json({ success: false, message: 'Profile not found.' });
 
-  // Ensure "Gallery" folder exists
-  let galleryFolder = profile.galleryFolders.find(f => 
-    f.name?.toLowerCase() === 'gallery' || f.category === 'All Media'
-  );
-
-  if (!galleryFolder) {
-    galleryFolder = {
-      id: new mongoose.Types.ObjectId().toString(),
-      name: 'Gallery',
-      category: 'All Media',
-      createdAt: new Date(),
-      images: [],
-    };
-    profile.galleryFolders.unshift(galleryFolder);
+  // Organize items by folderId for batch processing
+  const itemsByFolder = {};
+  for (const item of itemsPayload) {
+    const folderId = item.folderId || 'Gallery';
+    if (!itemsByFolder[folderId]) {
+      itemsByFolder[folderId] = [];
+    }
+    itemsByFolder[folderId].push(item);
   }
 
   const createdItems = [];
 
-  for (const item of itemsPayload) {
-    if (!item.dataUrl) continue;
+  // Process each folder's uploads
+  for (const [folderId, folderItems] of Object.entries(itemsByFolder)) {
+    // Find or create the target folder
+    let targetFolder = profile.galleryFolders.find(f => f.id === folderId);
+    
+    if (!targetFolder) {
+      targetFolder = {
+        id: folderId,
+        name: folderId === 'Gallery' ? 'Gallery' : folderId,
+        category: folderId === 'Gallery' ? 'All Media' : 'Custom',
+        createdAt: new Date(),
+        images: [],
+      };
+      profile.galleryFolders.unshift(targetFolder);
+    }
 
-    const saved = await saveDataUrlToDisk(
-      item,
-      req,
-      req.user._id,
-      'Gallery'
-    );
+    // Save each file to disk and create media item
+    for (const item of folderItems) {
+      if (!item.dataUrl) continue;
 
-    const mediaItem = {
-      id: new mongoose.Types.ObjectId().toString(),
-      title: item.title || item.fileName || 'Uploaded Media',
-      url: saved.url,
-      mediaType: item.mediaType || (item.fileType?.startsWith('video') ? 'video' : 'photo'),
-      isFavorite: false,
-      uploadedAt: new Date(),
-      uploadPath: `/uploads/gallery/${req.user._id}/Gallery`,
-      uploadedBy: 'couple-profile',
-    };
+      const saved = await saveDataUrlToDisk(
+        item,
+        req,
+        req.user._id,
+        folderId
+      );
 
-    // Avoid duplicates
-    if (!galleryFolder.images.some(img => img.url === saved.url)) {
-      galleryFolder.images.unshift(mediaItem);
-      createdItems.push(mediaItem);
+      const mediaItem = {
+        id: new mongoose.Types.ObjectId().toString(),
+        title: item.title || item.fileName || 'Uploaded Media',
+        url: saved.url,
+        mediaType: item.mediaType || (item.fileType?.startsWith('video') ? 'video' : 'photo'),
+        isFavorite: false,
+        uploadedAt: new Date(),
+        uploadPath: `/uploads/gallery/${req.user._id}/${folderId}`,
+        uploadedBy: 'couple-profile',
+      };
+
+      // Avoid duplicates
+      if (!targetFolder.images.some(img => img.url === saved.url)) {
+        targetFolder.images.unshift(mediaItem);
+        createdItems.push(mediaItem);
+      }
     }
   }
 
-  // === NEW: Maintain top-level "allMedia" / "allPhotos" / "allVideos" aggregation ===
+  // === Maintain top-level "allMedia" / "allPhotos" / "allVideos" aggregation ===
   if (!profile.allMedia) {
-    profile.allMedia = [];           // Array of all media across folders
+    profile.allMedia = [];
   }
   if (!profile.allPhotos) {
-    profile.allPhotos = [];          // Only photos
+    profile.allPhotos = [];
   }
   if (!profile.allVideos) {
-    profile.allVideos = [];          // Only videos
+    profile.allVideos = [];
   }
 
   // Add newly created items to top-level arrays
@@ -228,6 +239,66 @@ export const createGalleryFolder = async (req, res) => {
       success: true,
       message: 'Folder created successfully',
       data: newFolder,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Delete a gallery folder
+export const deleteGalleryFolder = async (req, res) => {
+  try {
+    const { folderId } = req.params;
+
+    if (!folderId?.trim()) {
+      return res.status(400).json({ success: false, message: 'Folder ID is required.' });
+    }
+
+    const profile = await CoupleProfile.findOne({ userId: req.user._id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Profile not found.' });
+    }
+
+    // Find the folder
+    const folderIndex = profile.galleryFolders.findIndex(f => f.id === folderId);
+    if (folderIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Folder not found.' });
+    }
+
+    const folder = profile.galleryFolders[folderIndex];
+    const folderImages = folder.images || [];
+
+    // Remove media items from top-level arrays (allMedia, allPhotos, allVideos)
+    if (profile.allMedia) {
+      profile.allMedia = profile.allMedia.filter(item => 
+        !folderImages.some(img => img.id === item.id)
+      );
+    }
+    if (profile.allPhotos) {
+      profile.allPhotos = profile.allPhotos.filter(item => 
+        !folderImages.some(img => img.id === item.id)
+      );
+    }
+    if (profile.allVideos) {
+      profile.allVideos = profile.allVideos.filter(item => 
+        !folderImages.some(img => img.id === item.id)
+      );
+    }
+
+    // Delete folder from gallery
+    profile.galleryFolders.splice(folderIndex, 1);
+    await profile.save();
+
+    // Delete files from disk
+    const folderPath = path.join(UPLOADS_DIR, String(req.user._id), String(folderId));
+    if (fs.existsSync(folderPath)) {
+      fs.rmSync(folderPath, { recursive: true, force: true });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Folder deleted successfully',
     });
   } catch (error) {
     console.error(error);
@@ -330,6 +401,69 @@ export const toggleGalleryMediaFavorite = async (req, res) => {
       success: true,
       message: 'Favorite status updated',
       isFavorite: allMediaItem?.isFavorite || false,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Move media to another folder
+export const moveGalleryMedia = async (req, res) => {
+  try {
+    const { mediaId } = req.params;
+    const { folderId } = req.body;
+
+    if (!folderId) {
+      return res.status(400).json({ success: false, message: 'Destination folder ID is required.' });
+    }
+
+    const profile = await CoupleProfile.findOne({ userId: req.user._id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Profile not found.' });
+    }
+
+    // Find the media item in any folder
+    let mediaItem = null;
+    let sourceFolder = null;
+
+    for (const folder of profile.galleryFolders) {
+      const foundItem = folder.images?.find(m => String(m.id) === mediaId);
+      if (foundItem) {
+        mediaItem = foundItem;
+        sourceFolder = folder;
+        break;
+      }
+    }
+
+    if (!mediaItem) {
+      return res.status(404).json({ success: false, message: 'Media not found.' });
+    }
+
+    // Find or create the destination folder
+    let destinationFolder = profile.galleryFolders.find(f => String(f.id) === folderId);
+    
+    if (!destinationFolder) {
+      return res.status(404).json({ success: false, message: 'Destination folder not found.' });
+    }
+
+    // Remove from source folder
+    if (sourceFolder) {
+      sourceFolder.images = sourceFolder.images?.filter(m => String(m.id) !== mediaId) || [];
+    }
+
+    // Add to destination folder
+    if (!destinationFolder.images) {
+      destinationFolder.images = [];
+    }
+    destinationFolder.images.unshift(mediaItem);
+
+    await profile.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Media moved successfully',
+      data: mediaItem,
     });
   } catch (error) {
     console.error(error);
