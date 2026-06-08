@@ -26,6 +26,16 @@ const galleryMediaSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    uploadPath: {
+      type: String,
+      default: '/uploads/gallery',
+      description: 'Server upload path where media is stored'
+    },
+    uploadedBy: {
+      type: String,
+      default: 'user',
+      description: 'Profile type that uploaded (user, photographer, etc)'
+    },
   },
   {
     timestamps: true,

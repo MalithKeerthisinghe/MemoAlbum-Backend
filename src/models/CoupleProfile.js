@@ -24,6 +24,8 @@ const galleryMediaSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    uploadPath: String,        // Added for easier deletion later
+    uploadedBy: String,
   },
   { _id: false }
 );
@@ -80,8 +82,24 @@ const coupleProfileSchema = new mongoose.Schema(
       enum: ['pending', 'active', 'inactive'],
       default: 'pending',
     },
+
+    // ====================== GALLERY STRUCTURE ======================
     galleryFolders: {
       type: [galleryFolderSchema],
+      default: [],
+    },
+
+    // === NEW: Top-level arrays for fast "All / Photos / Videos" access ===
+    allMedia: {
+      type: [galleryMediaSchema],
+      default: [],
+    },
+    allPhotos: {
+      type: [galleryMediaSchema],
+      default: [],
+    },
+    allVideos: {
+      type: [galleryMediaSchema],
       default: [],
     },
   },
@@ -90,5 +108,5 @@ const coupleProfileSchema = new mongoose.Schema(
 
 coupleProfileSchema.index({ userId: 1 });
 coupleProfileSchema.index({ primaryEmail: 1 });
-
+ 
 export default mongoose.model('CoupleProfile', coupleProfileSchema);
