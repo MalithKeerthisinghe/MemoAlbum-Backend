@@ -273,7 +273,7 @@ export const updateCurrentUser = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const { name, email, phone, bio, profilePic, settings, partnerEmail } = req.body || {};
+    const { name, email, phone, bio, profilePic, settings, partnerEmail, socials } = req.body || {};
 
     if (typeof name === 'string') user.name = name.trim();
     if (typeof email === 'string' && email.trim()) user.email = email.trim().toLowerCase();
@@ -281,6 +281,19 @@ export const updateCurrentUser = async (req, res) => {
     if (typeof bio === 'string') user.bio = bio;
     if (typeof profilePic === 'string') user.profilePic = profilePic;
     if (typeof partnerEmail === 'string') user.partnerEmail = partnerEmail.trim().toLowerCase();
+    
+    if (socials && typeof socials === 'object') {
+      user.socials = {
+        ...(user.socials || {}),
+        instagram: typeof socials.instagram === 'string' ? socials.instagram : user.socials?.instagram,
+        facebook: typeof socials.facebook === 'string' ? socials.facebook : user.socials?.facebook,
+        tiktok: typeof socials.tiktok === 'string' ? socials.tiktok : user.socials?.tiktok,
+        x: typeof socials.x === 'string' ? socials.x : user.socials?.x,
+        youtube: typeof socials.youtube === 'string' ? socials.youtube : user.socials?.youtube,
+        linkedin: typeof socials.linkedin === 'string' ? socials.linkedin : user.socials?.linkedin,
+        website: typeof socials.website === 'string' ? socials.website : user.socials?.website,
+      };
+    }
 
     if (settings && typeof settings === 'object') {
       user.settings = {
@@ -328,6 +341,42 @@ export const updateCurrentUser = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Email already in use' });
     }
 
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const changePassword = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Current password and new password are required' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Incorrect current password' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    return res.json({ success: true, message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Change Password Error:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };

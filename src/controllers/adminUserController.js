@@ -1,6 +1,7 @@
  import bcrypt from 'bcrypt';
 import User from '../models/User.js';
 import Role from '../models/Role.js';
+import CoupleProfile from '../models/CoupleProfile.js';
 import { sendResendInvitationEmail, sendUserInvitationEmail } from '../utils/mailer.js';
 
 const LEGACY_ADMIN_ROLE_ID = '6a01ee94eeadb31b01cee41a';
@@ -221,6 +222,18 @@ class AdminUserController {
         });
 
         await newUser.save();
+
+        if (isCoupleRole) {
+          const newCoupleProfile = new CoupleProfile({
+            userId: newUser._id,
+            primaryEmail: normalizedEmail,
+            partnerEmail: normalizedPartnerEmail || '',
+            bio: bio || '',
+            profilePicture: profileImage || '',
+            status: status === 'active' ? 'active' : 'pending',
+          });
+          await newCoupleProfile.save();
+        }
 
         const savedUser = await User.findById(newUser._id).populate('roleId', 'roleName');
 

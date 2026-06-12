@@ -204,3 +204,34 @@ export const deleteArchiveFolder = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
+
+export const changeArchiveFolderCover = async (req, res) => {
+  try {
+    const photographerId = getPhotographerId(req);
+    if (!photographerId) {
+      return res.status(401).json({ success: false, message: 'Photographer not authenticated' });
+    }
+
+    const { folderName } = req.params;
+    const { coverPhoto } = req.body;
+
+    if (!coverPhoto) {
+      return res.status(400).json({ success: false, message: 'Cover photo data is required' });
+    }
+
+    const result = await Archive.updateMany(
+      { photographerId, archiveFolderName: folderName },
+      { $set: { albumCoverPhoto: coverPhoto } }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Archive folder cover updated successfully',
+      modifiedCount: result.modifiedCount || 0,
+      coverPhoto,
+    });
+  } catch (error) {
+    console.error('Change Archive Folder Cover Error:', error);
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};

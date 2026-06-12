@@ -17,11 +17,12 @@ const mimeTypeToExtension = (mimeType = '') => {
 // Get Gallery Summary + All Media Counts (UI එකට ඕනේ)
 export const getGallerySummary = async (req, res) => {
   try {
-    const profile = await CoupleProfile.findOne({ userId: req.user._id })
+    let profile = await CoupleProfile.findOne({ userId: req.user._id })
       .select('allMedia allPhotos allVideos galleryFolders');
 
     if (!profile) {
-      return res.status(404).json({ success: false, message: 'Profile not found.' });
+      profile = new CoupleProfile({ userId: req.user._id, allMedia: [], allPhotos: [], allVideos: [], galleryFolders: [] });
+      await profile.save();
     }
 
     const summary = {
@@ -86,8 +87,10 @@ export const addGalleryMedia = async (req, res) => {
     return res.status(400).json({ success: false, message: 'No media provided.' });
   }
 
-  const profile = await CoupleProfile.findOne({ userId: req.user._id });
-  if (!profile) return res.status(404).json({ success: false, message: 'Profile not found.' });
+  let profile = await CoupleProfile.findOne({ userId: req.user._id });
+  if (!profile) {
+    profile = new CoupleProfile({ userId: req.user._id, allMedia: [], allPhotos: [], allVideos: [], galleryFolders: [] });
+  }
 
   // Organize items by folderId for batch processing
   const itemsByFolder = {};
@@ -198,9 +201,10 @@ export const addGalleryMedia = async (req, res) => {
 // Get all gallery folders
 export const getGalleryFolders = async (req, res) => {
   try {
-    const profile = await CoupleProfile.findOne({ userId: req.user._id });
+    let profile = await CoupleProfile.findOne({ userId: req.user._id });
     if (!profile) {
-      return res.status(404).json({ success: false, message: 'Profile not found.' });
+      profile = new CoupleProfile({ userId: req.user._id, allMedia: [], allPhotos: [], allVideos: [], galleryFolders: [] });
+      await profile.save();
     }
     const folders = profile?.galleryFolders || [];
     return res.status(200).json({ success: true, count: folders.length, data: folders });
@@ -219,9 +223,9 @@ export const createGalleryFolder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Folder name is required.' });
     }
 
-    const profile = await CoupleProfile.findOne({ userId: req.user._id });
+    let profile = await CoupleProfile.findOne({ userId: req.user._id });
     if (!profile) {
-      return res.status(404).json({ success: false, message: 'Profile not found.' });
+      profile = new CoupleProfile({ userId: req.user._id, allMedia: [], allPhotos: [], allVideos: [], galleryFolders: [] });
     }
 
     const newFolder = {
@@ -255,9 +259,9 @@ export const deleteGalleryFolder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Folder ID is required.' });
     }
 
-    const profile = await CoupleProfile.findOne({ userId: req.user._id });
+    let profile = await CoupleProfile.findOne({ userId: req.user._id });
     if (!profile) {
-      return res.status(404).json({ success: false, message: 'Profile not found.' });
+      profile = new CoupleProfile({ userId: req.user._id, allMedia: [], allPhotos: [], allVideos: [], galleryFolders: [] });
     }
 
     // Find the folder
@@ -309,11 +313,12 @@ export const deleteGalleryFolder = async (req, res) => {
 // List all gallery media (all photos and videos)
 export const listGalleryMedia = async (req, res) => {
   try {
-    const profile = await CoupleProfile.findOne({ userId: req.user._id })
+    let profile = await CoupleProfile.findOne({ userId: req.user._id })
       .select('allMedia');
 
     if (!profile) {
-      return res.status(404).json({ success: false, message: 'Profile not found.' });
+      profile = new CoupleProfile({ userId: req.user._id, allMedia: [], allPhotos: [], allVideos: [], galleryFolders: [] });
+      await profile.save();
     }
 
     return res.status(200).json({
@@ -332,9 +337,9 @@ export const deleteGalleryMedia = async (req, res) => {
   try {
     const { mediaId } = req.params;
 
-    const profile = await CoupleProfile.findOne({ userId: req.user._id });
+    let profile = await CoupleProfile.findOne({ userId: req.user._id });
     if (!profile) {
-      return res.status(404).json({ success: false, message: 'Profile not found.' });
+      profile = new CoupleProfile({ userId: req.user._id, allMedia: [], allPhotos: [], allVideos: [], galleryFolders: [] });
     }
 
     // Remove from all top-level arrays
@@ -364,9 +369,9 @@ export const toggleGalleryMediaFavorite = async (req, res) => {
   try {
     const { mediaId } = req.params;
 
-    const profile = await CoupleProfile.findOne({ userId: req.user._id });
+    let profile = await CoupleProfile.findOne({ userId: req.user._id });
     if (!profile) {
-      return res.status(404).json({ success: false, message: 'Profile not found.' });
+      profile = new CoupleProfile({ userId: req.user._id, allMedia: [], allPhotos: [], allVideos: [], galleryFolders: [] });
     }
 
     // Update in allMedia
@@ -418,9 +423,9 @@ export const moveGalleryMedia = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Destination folder ID is required.' });
     }
 
-    const profile = await CoupleProfile.findOne({ userId: req.user._id });
+    let profile = await CoupleProfile.findOne({ userId: req.user._id });
     if (!profile) {
-      return res.status(404).json({ success: false, message: 'Profile not found.' });
+      profile = new CoupleProfile({ userId: req.user._id, allMedia: [], allPhotos: [], allVideos: [], galleryFolders: [] });
     }
 
     // Find the media item in any folder
@@ -469,4 +474,37 @@ export const moveGalleryMedia = async (req, res) => {
     console.error(error);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
+};// Guest routes implementation (add at the end of the file)
+export const getGuestGalleryFolder = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) return res.status(400).json({ success: false, message: 'User ID required' });
+
+    let profile = await CoupleProfile.findOne({ userId });
+    if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
+
+    const folder = profile.galleryFolders.find(f => /guest|interactive/i.test(f.name) || /guest|interactive/i.test(f.category));
+    return res.status(200).json({ success: true, data: folder });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
+
+export const addGuestGalleryMedia = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) return res.status(400).json({ success: false, message: 'User ID required' });
+
+    // Mock req.user for the existing addGalleryMedia logic to reuse it
+    req.user = { _id: userId };
+    
+    // We can just call addGalleryMedia
+    // But wait, addGalleryMedia expects req.user._id, which we just set.
+    return await addGalleryMedia(req, res);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+

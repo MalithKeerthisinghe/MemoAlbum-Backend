@@ -145,10 +145,11 @@ export const createBookAlbum = async (req, res) => {
 
     const progress = totalSlots > 0 ? Math.round((filledSlots / totalSlots) * 100) : 0;
 
-    let bookAlbum = await BookAlbum.findOne({ photographerId, curateId, templateId });
+    let bookAlbum = await BookAlbum.findOne({ photographerId, curateId });
     let wasCreated = false;
 
     if (bookAlbum) {
+      bookAlbum.templateId = templateId;
       bookAlbum.templateName = template.name;
       bookAlbum.albumName = curate.albumName;
       bookAlbum.albumType = albumType;
