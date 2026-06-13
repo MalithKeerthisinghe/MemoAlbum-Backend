@@ -14,7 +14,7 @@ import bookAlbumRoutes from './routes/bookAlbumRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import galleryRoutes from './routes/galleryRoutes.js';
 import paymentRoutes from './routes/payment.js';      
-import orderRoutes from './routes/orders.js';          
+    
 
 const app = express();
 
@@ -41,6 +41,6 @@ app.use('/api/photographer', photographerRoutes);
 app.use('/api/book-albums', bookAlbumRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/payment', paymentRoutes);    
-app.use('/api/orders', orderRoutes);       
+     
 
 export default app;

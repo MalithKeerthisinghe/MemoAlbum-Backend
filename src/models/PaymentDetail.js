@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const orderSchema = new mongoose.Schema(
+const paymentDetailSchema = new mongoose.Schema(
   {
     pendingInviteId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -35,11 +35,15 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: 'LKR',
     },
-    genieOrderId: {
+    genieTransactionId: {
       type: String,
       default: null,
     },
-    transactionId: {
+    genieState: {
+      type: String,
+      default: null,
+    },
+    geniePaymentUrl: {
       type: String,
       default: null,
     },
@@ -68,17 +72,13 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    notes: {
-      type: String,
-      default: null,
-    },
   },
   { timestamps: true }
 );
 
-orderSchema.index({ photographerId: 1, createdAt: -1 });
-orderSchema.index({ paymentStatus: 1 });
-orderSchema.index({ albumId: 1 });
-orderSchema.index({ transactionId: 1 }, { sparse: true });
+paymentDetailSchema.index({ photographerId: 1, createdAt: -1 });
+paymentDetailSchema.index({ paymentStatus: 1 });
+paymentDetailSchema.index({ albumId: 1 });
+paymentDetailSchema.index({ genieTransactionId: 1 }, { sparse: true });
 
-export default mongoose.model('Order', orderSchema);
+export default mongoose.model('PaymentDetail', paymentDetailSchema);

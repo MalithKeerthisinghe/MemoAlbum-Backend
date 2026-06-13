@@ -20,13 +20,13 @@ const pendingInviteSchema = new mongoose.Schema(
       enum: ['pending', 'paid', 'failed', 'cancelled'],
       default: 'pending',
     },
-    transactionId: {
+    genieTransactionId: {
       type: String,
       default: null,
     },
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Order',
+      ref: 'PaymentDetail',
       default: null,
     },
   },

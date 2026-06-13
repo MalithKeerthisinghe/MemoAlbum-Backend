@@ -2,18 +2,18 @@ import express from 'express';
 import axios from 'axios';
 import PendingInvite from '../models/PendingInvite.js';
 import ClientInvite from '../models/ClientInvite.js';
-import Order from '../models/Order.js';
+import PaymentDetail from '../models/PaymentDetail.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-const GENIE_MERCHANT_ID = process.env.GENIE_MERCHANT_ID;
-const GENIE_API_KEY     = process.env.GENIE_API_KEY;
-const GENIE_IPG_URL     = process.env.GENIE_IPG_URL || 'https://ipg.geniebusiness.lk/checkout';
-const APP_URL           = process.env.APP_URL;
-const NEXT_PUBLIC_URL   = process.env.NEXT_PUBLIC_APP_URL;
+const GENIE_APP_ID    = process.env.GENIE_APP_ID;
+const GENIE_APP_KEY   = process.env.GENIE_APP_KEY;
+const GENIE_API_URL   = 'https://api.geniebiz.lk/public/v2/transactions';
+const APP_URL         = process.env.APP_URL;
+const NEXT_PUBLIC_URL = process.env.NEXT_PUBLIC_APP_URL;
 
-// POST /api/payment/initiate
+// ─── POST /api/payment/initiate ───────────────────────────────────────────────
 router.post('/initiate', protect, async (req, res) => {
   const { albumId, clientEmails } = req.body;
   const photographerId = req.user._id;
@@ -26,6 +26,7 @@ router.post('/initiate', protect, async (req, res) => {
   }
 
   try {
+    // 1. Save PendingInvite
     const pending = await PendingInvite.create({
       albumId,
       clientEmails,
@@ -33,7 +34,8 @@ router.post('/initiate', protect, async (req, res) => {
       status: 'pending',
     });
 
-    const order = await Order.create({
+    // 2. Create PaymentDetail record
+    const paymentDetail = await PaymentDetail.create({
       pendingInviteId: pending._id,
       albumId,
       photographerId,
@@ -44,25 +46,40 @@ router.post('/initiate', protect, async (req, res) => {
       initiatedAt:   new Date(),
     });
 
-    await PendingInvite.findByIdAndUpdate(pending._id, { orderId: order._id });
+    // 3. Link paymentDetail back to pending
+    await PendingInvite.findByIdAndUpdate(pending._id, {
+      orderId: paymentDetail._id,
+    });
 
+    // 4. Call Genie API
+    // Amount is in CENTS — 10000 LKR = 1000000 cents
     const payload = {
-      merchant_id: GENIE_MERCHANT_ID,
-      api_key:     GENIE_API_KEY,
-      amount:      '10000.00',
-      currency:    'LKR',
-      order_id:    pending._id.toString(),
-      return_url:  `${APP_URL}/api/payment/callback`,
-      cancel_url:  `${NEXT_PUBLIC_URL}/photographer/curator?payment=cancelled`,
-      description: `Album invite for ${albumId}`,
+      amount:            1000000,
+      currency:          'LKR',
+      redirectUrl:       `${NEXT_PUBLIC_URL}/photographer/curator?payment=success&order_id=${pending._id}`,
+      webhook:           `${APP_URL}/api/payment/webhook`,
+      localId:           pending._id.toString(),
+      customerReference: `Album invite - ${albumId}`,
+      paymentPortalExperience: {
+        skipCustomerForm:       true,
+        hideTermsAndConditions: false,
+      },
     };
 
-    const genieRes = await axios.post(GENIE_IPG_URL, payload);
-    const paymentUrl = genieRes.data?.payment_url;
+    const genieRes = await axios.post(GENIE_API_URL, payload, {
+      headers: {
+        'Authorization': GENIE_API_KEY,
+        'Content-Type':  'application/json',
+        'Accept':        'application/json',
+      },
+    });
+
+    const genieData  = genieRes.data;
+    const paymentUrl = genieData?.url || genieData?.shortUrl;
 
     if (!paymentUrl) {
       await PendingInvite.findByIdAndDelete(pending._id);
-      await Order.findByIdAndUpdate(order._id, {
+      await PaymentDetail.findByIdAndUpdate(paymentDetail._id, {
         paymentStatus: 'failed',
         failedAt:      new Date(),
         failureReason: 'Genie did not return a payment URL',
@@ -73,29 +90,40 @@ router.post('/initiate', protect, async (req, res) => {
       });
     }
 
+    // 5. Save Genie transaction ID to both records
+    await Promise.all([
+      PendingInvite.findByIdAndUpdate(pending._id, {
+        genieTransactionId: genieData.id,
+      }),
+      PaymentDetail.findByIdAndUpdate(paymentDetail._id, {
+        genieTransactionId: genieData.id,
+        genieState:         genieData.state,
+        geniePaymentUrl:    paymentUrl,
+      }),
+    ]);
+
     res.json({ success: true, redirectUrl: paymentUrl });
 
   } catch (err) {
-    console.error('Payment initiate error:', err.message);
+    console.error('Payment initiate error:', err.response?.data || err.message);
     res.status(500).json({ success: false, message: 'Failed to initiate payment' });
   }
 });
 
-// GET /api/payment/callback
-router.get('/callback', async (req, res) => {
-  const { order_id, status, transaction_id } = req.query;
+// ─── POST /api/payment/webhook ────────────────────────────────────────────────
+router.post('/webhook', async (req, res) => {
+  try {
+    const { id, state, localId } = req.body;
 
-  if (status === 'SUCCESS' && order_id) {
-    try {
-      const pending = await PendingInvite.findById(order_id);
+    // Always respond 200 immediately so Genie does not retry
+    res.status(200).json({ received: true });
 
-      if (!pending) {
-        return res.redirect(`${NEXT_PUBLIC_URL}/photographer/curator?payment=failed`);
-      }
+    if (!localId) return;
 
-      if (pending.status === 'paid') {
-        return res.redirect(`${NEXT_PUBLIC_URL}/photographer/curator?payment=success`);
-      }
+    const pending = await PendingInvite.findById(localId);
+    if (!pending) return;
+
+    if (state === 'CONFIRMED' && pending.status !== 'paid') {
 
       const invite = await ClientInvite.create({
         albumId:      pending.albumId,
@@ -105,49 +133,195 @@ router.get('/callback', async (req, res) => {
         sentAt:       new Date(),
       });
 
-      await Order.findOneAndUpdate(
+      await PaymentDetail.findOneAndUpdate(
         { pendingInviteId: pending._id },
         {
-          paymentStatus:  'paid',
-          inviteSent:     true,
-          clientInviteId: invite._id,
-          transactionId:  transaction_id || null,
-          paidAt:         new Date(),
+          paymentStatus:      'paid',
+          inviteSent:         true,
+          clientInviteId:     invite._id,
+          genieTransactionId: id,
+          genieState:         state,
+          paidAt:             new Date(),
         }
       );
 
-      await PendingInvite.findByIdAndUpdate(order_id, {
-        status:        'paid',
-        transactionId: transaction_id || null,
+      await PendingInvite.findByIdAndUpdate(localId, {
+        status:             'paid',
+        genieTransactionId: id,
       });
 
-      return res.redirect(`${NEXT_PUBLIC_URL}/photographer/curator?payment=success`);
+    } else if (state === 'CANCELLED' || state === 'FAILED') {
 
-    } catch (err) {
-      console.error('Callback error:', err.message);
-      return res.redirect(`${NEXT_PUBLIC_URL}/photographer/curator?payment=failed`);
-    }
-  }
-
-  if (order_id) {
-    const isCancelled = status === 'CANCELLED';
-    await Promise.all([
-      PendingInvite.findByIdAndUpdate(order_id, {
-        status: isCancelled ? 'cancelled' : 'failed',
-      }).catch(() => {}),
-      Order.findOneAndUpdate(
-        { pendingInviteId: order_id },
+      await PaymentDetail.findOneAndUpdate(
+        { pendingInviteId: pending._id },
         {
-          paymentStatus: isCancelled ? 'cancelled' : 'failed',
+          paymentStatus: state === 'CANCELLED' ? 'cancelled' : 'failed',
+          genieState:    state,
           failedAt:      new Date(),
-          failureReason: `Genie callback status: ${status}`,
+          failureReason: `Genie state: ${state}`,
         }
-      ).catch(() => {}),
-    ]);
-  }
+      );
 
-  const param = status === 'CANCELLED' ? 'cancelled' : 'failed';
-  res.redirect(`${NEXT_PUBLIC_URL}/photographer/curator?payment=${param}`);
+      await PendingInvite.findByIdAndUpdate(localId, {
+        status: state === 'CANCELLED' ? 'cancelled' : 'failed',
+      });
+    }
+
+  } catch (err) {
+    console.error('Webhook error:', err.message);
+  }
+});
+
+// ─── GET /api/payment/verify/:orderId ─────────────────────────────────────────
+router.get('/verify/:orderId', protect, async (req, res) => {
+  try {
+    const pending = await PendingInvite.findById(req.params.orderId);
+
+    if (!pending) {
+      return res.status(404).json({ success: false, message: 'Payment not found' });
+    }
+
+    if (pending.status === 'paid') {
+      return res.json({ success: true, status: 'paid' });
+    }
+
+    if (pending.genieTransactionId) {
+      const genieRes = await axios.get(
+        `https://api.geniebiz.lk/public/transactions/${pending.genieTransactionId}`,
+        {
+          headers: {
+            'Authorization': GENIE_API_KEY,
+            'Accept':        'application/json',
+          },
+        }
+      );
+
+      const genieState = genieRes.data?.state;
+
+      if (genieState === 'CONFIRMED' && pending.status !== 'paid') {
+
+        const invite = await ClientInvite.create({
+          albumId:      pending.albumId,
+          clientEmails: pending.clientEmails,
+          inviteStatus: 'sent',
+          emailStatus:  'queued',
+          sentAt:       new Date(),
+        });
+
+        await PaymentDetail.findOneAndUpdate(
+          { pendingInviteId: pending._id },
+          {
+            paymentStatus:  'paid',
+            inviteSent:     true,
+            clientInviteId: invite._id,
+            genieState:     genieState,
+            paidAt:         new Date(),
+          }
+        );
+
+        await PendingInvite.findByIdAndUpdate(req.params.orderId, {
+          status: 'paid',
+        });
+
+        return res.json({ success: true, status: 'paid' });
+      }
+
+      return res.json({ success: true, status: pending.status, genieState });
+    }
+
+    res.json({ success: true, status: pending.status });
+
+  } catch (err) {
+    console.error('Verify error:', err.message);
+    res.status(500).json({ success: false, message: 'Verification failed' });
+  }
+});
+
+// ─── GET /api/payment/details ─────────────────────────────────────────────────
+router.get('/details', protect, async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const filter = { photographerId: req.user._id };
+    if (status) filter.paymentStatus = status;
+
+    const [payments, total] = await Promise.all([
+      PaymentDetail.find(filter)
+        .populate('albumId',        'albumName coverPhoto weddingDate')
+        .populate('clientInviteId', 'inviteStatus emailStatus sentAt')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+      PaymentDetail.countDocuments(filter),
+    ]);
+
+    res.json({
+      success: true,
+      payments,
+      pagination: {
+        total,
+        page:       Number(page),
+        limit:      Number(limit),
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch payment details' });
+  }
+});
+
+// ─── GET /api/payment/details/stats ──────────────────────────────────────────
+router.get('/details/stats', protect, async (req, res) => {
+  try {
+    const photographerId = req.user._id;
+
+    const [stats] = await PaymentDetail.aggregate([
+      { $match: { photographerId } },
+      {
+        $group: {
+          _id:             null,
+          totalPayments:   { $sum: 1 },
+          paidPayments:    { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] },    1, 0] } },
+          pendingPayments: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'pending'] }, 1, 0] } },
+          failedPayments:  { $sum: { $cond: [{ $eq: ['$paymentStatus', 'failed'] },  1, 0] } },
+          totalRevenue:    { $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, '$amount', 0] } },
+        },
+      },
+    ]);
+
+    res.json({
+      success: true,
+      stats: stats || {
+        totalPayments: 0, paidPayments: 0,
+        pendingPayments: 0, failedPayments: 0, totalRevenue: 0,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch stats' });
+  }
+});
+
+// ─── GET /api/payment/details/:id ────────────────────────────────────────────
+router.get('/details/:id', protect, async (req, res) => {
+  try {
+    const payment = await PaymentDetail.findOne({
+      _id:            req.params.id,
+      photographerId: req.user._id,
+    })
+      .populate('albumId',         'albumName coverPhoto weddingDate')
+      .populate('clientInviteId',  'inviteStatus emailStatus sentAt clientEmails')
+      .populate('pendingInviteId', 'status')
+      .lean();
+
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment detail not found' });
+    }
+
+    res.json({ success: true, payment });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch payment detail' });
+  }
 });
 
 export default router;
