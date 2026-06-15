@@ -13,6 +13,13 @@ const GENIE_API_URL   = 'https://api.geniebiz.lk/public/v2/transactions';
 const APP_URL         = process.env.APP_URL;
 const NEXT_PUBLIC_URL = process.env.NEXT_PUBLIC_APP_URL;
 
+// Generate unique payment reference
+const generateReference = () => {
+  const date   = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const random = Math.random().toString(36).toUpperCase().slice(2, 6);
+  return `LF-${date}-${random}`;
+};
+
 // ─── POST /api/payment/initiate ───────────────────────────────────────────────
 router.post('/initiate', protect, async (req, res) => {
   const { albumId, clientEmails } = req.body;
@@ -34,16 +41,17 @@ router.post('/initiate', protect, async (req, res) => {
       status: 'pending',
     });
 
-    // 2. Create PaymentDetail record
+    // 2. Create PaymentDetail record — this creates the paymentdetails collection
     const paymentDetail = await PaymentDetail.create({
-      pendingInviteId: pending._id,
+      pendingInviteId:  pending._id,
       albumId,
       photographerId,
       clientEmails,
-      amount:        10000,
-      currency:      'LKR',
-      paymentStatus: 'pending',
-      initiatedAt:   new Date(),
+      amount:           10000,
+      currency:         'LKR',
+      paymentStatus:    'pending',
+      initiatedAt:      new Date(),
+      paymentReference: generateReference(),
     });
 
     // 3. Link paymentDetail back to pending
@@ -59,7 +67,7 @@ router.post('/initiate', protect, async (req, res) => {
       redirectUrl:       `${NEXT_PUBLIC_URL}/photographer/curator?payment=success&order_id=${pending._id}`,
       webhook:           `${APP_URL}/api/payment/webhook`,
       localId:           pending._id.toString(),
-      customerReference: `Album invite - ${albumId}`,
+      customerReference: paymentDetail.paymentReference,
       paymentPortalExperience: {
         skipCustomerForm:       true,
         hideTermsAndConditions: false,
@@ -68,7 +76,8 @@ router.post('/initiate', protect, async (req, res) => {
 
     const genieRes = await axios.post(GENIE_API_URL, payload, {
       headers: {
-        'Authorization': GENIE_API_KEY,
+        'Authorization': GENIE_APP_KEY,
+        'X-App-Id':      GENIE_APP_ID,
         'Content-Type':  'application/json',
         'Accept':        'application/json',
       },
@@ -102,7 +111,12 @@ router.post('/initiate', protect, async (req, res) => {
       }),
     ]);
 
-    res.json({ success: true, redirectUrl: paymentUrl });
+    // 6. Return redirect URL and reference to frontend
+    res.json({
+      success:          true,
+      redirectUrl:      paymentUrl,
+      paymentReference: paymentDetail.paymentReference,
+    });
 
   } catch (err) {
     console.error('Payment initiate error:', err.response?.data || err.message);
@@ -190,7 +204,8 @@ router.get('/verify/:orderId', protect, async (req, res) => {
         `https://api.geniebiz.lk/public/transactions/${pending.genieTransactionId}`,
         {
           headers: {
-            'Authorization': GENIE_API_KEY,
+            'Authorization': GENIE_APP_KEY,
+            'X-App-Id':      GENIE_APP_ID,
             'Accept':        'application/json',
           },
         }

@@ -1,25 +1,25 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const paymentDetailSchema = new mongoose.Schema(
   {
     pendingInviteId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'PendingInvite',
+      ref: "PendingInvite",
       default: null,
     },
     clientInviteId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'ClientInvite',
+      ref: "ClientInvite",
       default: null,
     },
     albumId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Curate',
+      ref: "Curate",
       required: true,
     },
     photographerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     clientEmails: {
@@ -33,7 +33,7 @@ const paymentDetailSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
-      default: 'LKR',
+      default: "LKR",
     },
     genieTransactionId: {
       type: String,
@@ -47,10 +47,15 @@ const paymentDetailSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    paymentReference: {
+      type: String,
+      unique: true,
+      default: null,
+    },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'paid', 'failed', 'cancelled', 'refunded'],
-      default: 'pending',
+      enum: ["pending", "paid", "failed", "cancelled", "refunded"],
+      default: "pending",
     },
     inviteSent: {
       type: Boolean,
@@ -73,7 +78,7 @@ const paymentDetailSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 paymentDetailSchema.index({ photographerId: 1, createdAt: -1 });
@@ -81,4 +86,4 @@ paymentDetailSchema.index({ paymentStatus: 1 });
 paymentDetailSchema.index({ albumId: 1 });
 paymentDetailSchema.index({ genieTransactionId: 1 }, { sparse: true });
 
-export default mongoose.model('PaymentDetail', paymentDetailSchema);
+export default mongoose.model("PaymentDetail", paymentDetailSchema);
