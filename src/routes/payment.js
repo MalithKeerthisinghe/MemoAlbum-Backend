@@ -79,7 +79,7 @@ router.post("/initiate", protect, async (req, res) => {
       payload,
     });
 
-    console.log("GENIE_SECRET_KEY =", GENIE_SECRET_KEY);
+    console.log("GENIE_APP_ID =", GENIE_APP_ID);
     const genieRes = await axios.post(GENIE_API_URL, payload, {
       headers: {
         Authorization: GENIE_SECRET_KEY,
@@ -125,7 +125,7 @@ router.post("/initiate", protect, async (req, res) => {
       paymentReference: paymentDetail.paymentReference,
     });
   } catch (err) {
-    console.error("Payment initiate error:", err.response?.data || err.message);
+    console.log(JSON.stringify(err.response?.data, null, 2));
     res
       .status(500)
       .json({ success: false, message: "Failed to initiate payment" });
