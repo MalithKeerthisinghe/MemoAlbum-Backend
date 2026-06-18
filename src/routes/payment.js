@@ -68,16 +68,10 @@ router.post("/initiate", protect, async (req, res) => {
     const payload = {
       amount: 1000000,
       currency: "LKR",
-      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/photographer/curator?payment=success&order_id=${pending._id}`,
-      appId: GENIE_APP_ID,
       localId: pending._id.toString(),
     };
 
-    console.log("Sending to Genie:", {
-      appIdExists: !!GENIE_APP_ID,
-      secretKeyExists: !!GENIE_SECRET_KEY,
-      payload,
-    });
+    console.log("Sending to Genie:", payload);
 
     console.log("GENIE_APP_ID =", GENIE_APP_ID);
     const genieRes = await axios.post(GENIE_API_URL, payload, {
