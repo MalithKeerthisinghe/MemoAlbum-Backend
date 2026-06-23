@@ -1,7 +1,8 @@
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 
-const s3Client = new S3Client({
+// ✅ Create client lazily inside functions so .env is already loaded
+const getS3Client = () => new S3Client({
   region: process.env.AWS_REGION,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -30,7 +31,7 @@ export const uploadBase64ToS3 = async (dataUrl, s3Key, mimeType) => {
   const buffer = Buffer.from(base64Data, 'base64');
 
   const upload = new Upload({
-    client: s3Client,
+    client: getS3Client(),   // ✅ fresh client with loaded credentials
     params: {
       Bucket: process.env.S3_BUCKET_NAME,
       Key: s3Key,
@@ -50,7 +51,7 @@ export const deleteFromS3 = async (fileUrl) => {
     const bucketBase = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/`;
     if (!fileUrl.startsWith(bucketBase)) return;
     const key = fileUrl.replace(bucketBase, '');
-    await s3Client.send(new DeleteObjectCommand({
+    await getS3Client().send(new DeleteObjectCommand({  // ✅ fresh client
       Bucket: process.env.S3_BUCKET_NAME,
       Key: key,
     }));
