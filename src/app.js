@@ -26,7 +26,6 @@ const allowedOrigins = [
   "https://admin.memoalbum.com"
 ];
 
-// ✅ CHANGE 1 — fixed CORS config (removed throw Error, added methods and allowedHeaders)
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
@@ -38,10 +37,19 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Expires',           // ✅ added
+    'Cache-Control',     // ✅ added — often sent alongside Expires
+    'Pragma',            // ✅ added — also cache-related
+    'X-Requested-With',  // ✅ added — common in fetch requests
+  ],
 }));
 
-// ✅ CHANGE 2 — handle preflight OPTIONS requests (added right after cors middleware)
+app.options('*', cors());
+
+
 app.options('*', cors());
 
 app.use(express.json({ limit: '100mb' }));
