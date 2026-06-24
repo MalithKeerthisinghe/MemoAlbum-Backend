@@ -1,4 +1,4 @@
- import express from "express";
+import express from "express";
 import cors from "cors";
 import path from "path";
 
@@ -13,8 +13,7 @@ import photographerRoutes from './routes/photographerRoutes.js';
 import bookAlbumRoutes from './routes/bookAlbumRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import galleryRoutes from './routes/galleryRoutes.js';
-import paymentRoutes from './routes/payment.js';      
-    
+import paymentRoutes from './routes/payment.js';
 
 const app = express();
 
@@ -27,16 +26,23 @@ const allowedOrigins = [
   "https://admin.memoalbum.com"
 ];
 
+// ✅ CHANGE 1 — fixed CORS config (removed throw Error, added methods and allowedHeaders)
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(new Error("Not allowed by CORS"));
+    console.error(`CORS blocked origin: ${origin}`);
+    return callback(null, false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// ✅ CHANGE 2 — handle preflight OPTIONS requests (added right after cors middleware)
+app.options('*', cors());
 
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
@@ -45,7 +51,7 @@ app.get("/", (req, res) => {
   res.send("API Running - LensFlow Studio");
 });
 
- app.use("/api/auth", authRoutes);
+app.use("/api/auth", authRoutes);
 app.use('/api/admin', adminApiRoutes);
 app.use('/api/albums', albumRoutes);
 app.use('/api/curate', curateRoutes);
@@ -56,7 +62,6 @@ app.use('/api/gallery', galleryRoutes);
 app.use('/api/photographer', photographerRoutes);
 app.use('/api/book-albums', bookAlbumRoutes);
 app.use('/api/contact', contactRoutes);
-app.use('/api/payment', paymentRoutes);    
-     
+app.use('/api/payment', paymentRoutes);
 
 export default app;
